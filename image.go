@@ -19,8 +19,12 @@ import (
 	_ "image/jpeg"
 	_ "image/png"
 	"os"
+
+	"github.com/jezek/xgbutil"
+	"github.com/jezek/xgbutil/xgraphics"
 )
 
+// Image state
 const (
 	I_UNLOADED = iota
 	I_LOADING
@@ -28,8 +32,8 @@ const (
 	I_ERROR
 )
 
-func NewPict(f string) *Pict {
-	return &Pict{state: I_UNLOADED, name: f}
+func NewPict(f string, X *xgbutil.XUtil) *Pict {
+	return &Pict{state: I_UNLOADED, name: f, X: X}
 }
 
 // wait waits for image loading to complete, and then
@@ -66,7 +70,7 @@ func (p *Pict) startLoad(w, h int) {
 // image can be accessed.
 func (p *Pict) load() {
 	defer p.ready.Done()
-	p.data = nil
+	p.clean()
 	f, err := os.Open(p.name)
 	if err != nil {
 		p.state = I_ERROR
@@ -81,11 +85,29 @@ func (p *Pict) load() {
 		return
 	}
 	p.data = new(Data)
-	p.data.img = img
+	p.data.img = xgraphics.NewConvert(p.X, img)
+	// Determine the scaling necessary to fit within the window
+	r := p.data.img.Bounds().Max
+	xRatio := float64(p.width) / float64(r.X)
+	yRatio := float64(p.height) / float64(r.Y)
+	// If the image is larger than the window, scale it down
+	if xRatio < 1 || yRatio < 1 {
+		var w, h int
+		if xRatio > yRatio {
+			// Scale to width
+			w = int(xRatio * float64(r.X))
+			h = int(xRatio * float64(r.Y))
+		} else {
+			// Scale to height
+			w = int(yRatio * float64(r.X))
+			h = int(yRatio * float64(r.Y))
+		}
+		p.data.img = p.data.img.Scale(w, h)
+	}
 	p.data.exiv, err = getExiv(p.name)
 	if err != nil {
-		// We do allow an on reading the EXIF, which
-		// usually means there is no EXIF data on the file
+		// We do allow an error when reading the EXIF.
+		// This usually means there is no EXIF headers in the file
 		p.data.exiv = make(Exiv)
 	}
 	p.state = I_LOADED
@@ -93,7 +115,14 @@ func (p *Pict) load() {
 
 // unload clears out the image data and sets the picture to unloaded
 func (p *Pict) unload() {
-	p.wait() // Ensure not already loading
+	p.wait() // Ensure not currently loading
+	p.clean()
+}
+
+func (p *Pict) clean() {
+	if p.data != nil && p.data.img != nil {
+		p.data.img.Destroy()
+	}
 	p.state = I_UNLOADED
 	p.data = nil
 }

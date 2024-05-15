@@ -13,8 +13,10 @@
 package main
 
 import (
-	"image"
 	"sync"
+
+	"github.com/jezek/xgbutil"
+	"github.com/jezek/xgbutil/xgraphics"
 )
 
 type nothing struct{}
@@ -24,8 +26,8 @@ type Exiv map[int]string
 // Temporary data, present only when the image
 // is loaded.
 type Data struct {
-	exiv Exiv        // Current EXIF data
-	img  image.Image // Image retrieved from file
+	exiv Exiv             // Current EXIF data
+	img  *xgraphics.Image // Converted image
 }
 
 type Pict struct {
@@ -33,6 +35,7 @@ type Pict struct {
 	name          string         // Filename of picture
 	err           error          // Error during loading
 	ready         sync.WaitGroup // lock for loading
+	X             *xgbutil.XUtil // X server connection
 	width, height int            // Window size
 	data          *Data          // Image data, nil if unloaded
 }

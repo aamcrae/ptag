@@ -15,7 +15,12 @@ package main
 import (
 	"flag"
 	"fmt"
+	"os"
+	"path"
 	"runtime"
+
+	"github.com/jezek/xgbutil"
+	"github.com/jezek/xgbutil/xevent"
 )
 
 var verbose = flag.Bool("verbose", false, "Verbose tracing")
@@ -24,6 +29,11 @@ var maxPreload = flag.Int("preload", 10, "Maximum images to concurrently load")
 func main() {
 	flag.Parse()
 
+	X, err := xgbutil.NewConn()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "X11: %v", err)
+		return
+	}
 	var f []string
 	// No args, do all image files
 	if len(flag.Args()) == 0 {
@@ -36,7 +46,7 @@ func main() {
 	}
 	var plist []*Pict
 	for _, file := range f {
-		p := NewPict(file)
+		p := NewPict(file, X)
 		plist = append(plist, p)
 	}
 	preload := runtime.NumCPU()
@@ -51,7 +61,7 @@ func main() {
 	for i, p := range plist {
 		for preloaded < i+preload {
 			if preloaded < len(plist) {
-				plist[preloaded].startLoad(200, 300)
+				plist[preloaded].startLoad(1000, 800)
 			}
 			preloaded++
 		}
@@ -59,7 +69,9 @@ func main() {
 		if p.state == I_ERROR {
 			fmt.Printf("%s: loading error: %v", p.name, p.err)
 		} else {
-			fmt.Printf("%s: img: %d x %d EXIV: %v\n", p.name, p.data.img.Bounds().Max.X, p.data.img.Bounds().Max.Y, p.data.exiv)
+			_, nm := path.Split(p.name)
+			p.data.img.XShowExtra(nm, true)
+			xevent.Main(X)
 		}
 		flush := i - preload
 		if flush >= 0 {
