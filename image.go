@@ -19,9 +19,11 @@ import (
 	_ "image/jpeg"
 	_ "image/png"
 	"os"
+	"path"
 
 	"github.com/jezek/xgbutil"
 	"github.com/jezek/xgbutil/xgraphics"
+	"github.com/jezek/xgbutil/xwindow"
 )
 
 // Image state
@@ -32,8 +34,9 @@ const (
 	I_ERROR
 )
 
-func NewPict(f string, X *xgbutil.XUtil) *Pict {
-	return &Pict{state: I_UNLOADED, name: f, X: X}
+func NewPict(file string, X *xgbutil.XUtil, index int) *Pict {
+	_, f := path.Split(file)
+	return &Pict{state: I_UNLOADED, path: file, name: f, X: X, index: index}
 }
 
 // wait waits for image loading to complete, and then
@@ -58,7 +61,7 @@ func (p *Pict) startLoad(w, h int) {
 	p.width = w
 	p.height = h
 	if *verbose {
-		fmt.Printf("%s: loading...\n", p.name)
+		fmt.Printf("%s (index %d): loading...\n", p.name, p.index)
 	}
 	p.ready.Add(1)
 	p.state = I_LOADING
@@ -71,7 +74,7 @@ func (p *Pict) startLoad(w, h int) {
 func (p *Pict) load() {
 	defer p.ready.Done()
 	p.clean()
-	f, err := os.Open(p.name)
+	f, err := os.Open(p.path)
 	if err != nil {
 		p.state = I_ERROR
 		p.err = err
@@ -93,18 +96,34 @@ func (p *Pict) load() {
 	// If the image is larger than the window, scale it down
 	if xRatio < 1 || yRatio < 1 {
 		var w, h int
-		if xRatio > yRatio {
+		if xRatio < yRatio {
 			// Scale to width
 			w = int(xRatio * float64(r.X))
 			h = int(xRatio * float64(r.Y))
+			p.x = 0
+			p.y = (p.height - h) / 2
 		} else {
 			// Scale to height
 			w = int(yRatio * float64(r.X))
 			h = int(yRatio * float64(r.Y))
+			p.x = (p.width - w) / 2
+			p.y = 0
+		}
+		if *verbose {
+			fmt.Printf("%s: scale to %d, %d, start %d, %d\n", p.name, w, h, p.x, p.y)
 		}
 		p.data.img = p.data.img.Scale(w, h)
 	}
-	p.data.exiv, err = getExiv(p.name)
+	// Create a pixmap and draw the image onto it.
+	err = p.data.img.CreatePixmap()
+	if err != nil {
+		p.clean()
+		p.state = I_ERROR
+		p.err = err
+		return
+	}
+	p.data.img.XDraw()
+	p.data.exiv, err = getExiv(p.path)
 	if err != nil {
 		// We do allow an error when reading the EXIF.
 		// This usually means there is no EXIF headers in the file
@@ -113,10 +132,22 @@ func (p *Pict) load() {
 	p.state = I_LOADED
 }
 
+func (p *Pict) show(win *xwindow.Window) {
+	if *verbose {
+		fmt.Printf("showing image %s (index %d) at %d, %d\n", p.name, p.index, p.x, p.y)
+	}
+	p.data.img.XExpPaint(win.Id, p.x, p.y)
+}
+
 // unload clears out the image data and sets the picture to unloaded
 func (p *Pict) unload() {
-	p.wait() // Ensure not currently loading
-	p.clean()
+	if p.state != I_UNLOADED {
+		if *verbose {
+			fmt.Printf("Unloading %s, index %d\n", p.name, p.index)
+		}
+		p.wait() // Ensure not currently loading
+		p.clean()
+	}
 }
 
 func (p *Pict) clean() {

@@ -17,6 +17,7 @@ import (
 
 	"github.com/jezek/xgbutil"
 	"github.com/jezek/xgbutil/xgraphics"
+	"github.com/jezek/xgbutil/xwindow"
 )
 
 type nothing struct{}
@@ -31,11 +32,23 @@ type Data struct {
 }
 
 type Pict struct {
-	state         int            // Current state
-	name          string         // Filename of picture
+	state         int    // Current state
+	path          string // Filename of picture
+	name          string // short name
+	index         int
 	err           error          // Error during loading
 	ready         sync.WaitGroup // lock for loading
 	X             *xgbutil.XUtil // X server connection
 	width, height int            // Window size
+	x, y          int            // Starting location
 	data          *Data          // Image data, nil if unloaded
+}
+
+type runner struct {
+	X             *xgbutil.XUtil  // X server connection
+	win           *xwindow.Window // Display window
+	width, height int             // Current window size
+	picts         []*Pict         // Pictures
+	index         int             // Current picture
+	preload       int
 }
