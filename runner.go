@@ -94,10 +94,22 @@ func (r *runner) start(f []string) {
 			switch keyStr {
 			case "q":
 				outEvent <- event{E_QUIT, 0, 0}
-			case "n":
+			case "n", " ", "Right", "KP_Right":
 				outEvent <- event{E_NEXT, 0, 0}
-			case "p":
+			case "p", "Left", "KP_Left":
 				outEvent <- event{E_PREVIOUS, 0, 0}
+			case "0":
+				outEvent <- event{E_RATING, 0, 0}
+			case "1":
+				outEvent <- event{E_RATING, 1, 0}
+			case "2":
+				outEvent <- event{E_RATING, 2, 0}
+			case "3":
+				outEvent <- event{E_RATING, 3, 0}
+			case "4":
+				outEvent <- event{E_RATING, 0, 0}
+			case "5":
+				outEvent <- event{E_RATING, 5, 0}
 			}
 		}).Connect(r.X, r.win.Id)
 	r.win.Map()
@@ -113,7 +125,11 @@ func (r *runner) start(f []string) {
 		case ev := <-inEvent:
 			switch ev.event {
 			case E_RESIZE:
-				r.resize(ev.w, ev.h)
+				r.resize(ev.w, ev.h, true)
+			case E_RESIZE_NOSHOW:
+				r.resize(ev.w, ev.h, false)
+			case E_RATING:
+				r.rate(ev.w)
 			case E_NEXT:
 				r.next()
 			case E_PREVIOUS:
@@ -137,7 +153,7 @@ func (r *runner) show() {
 }
 
 // Resize notification.
-func (r *runner) resize(w, h int) {
+func (r *runner) resize(w, h int, current bool) {
 	if *verbose {
 		fmt.Printf("Resize to %d x %d (current %d x %d)\n", w, h, r.geom.Width(), r.geom.Height())
 	}
@@ -147,7 +163,14 @@ func (r *runner) resize(w, h int) {
 	r.geom.WidthSet(w)
 	r.geom.HeightSet(h)
 	r.picts[r.index].startLoad(r.geom)
-	r.show()
+	if current {
+		r.show()
+	}
+	// Refresh the cached loads.
+	for i := 1; i < r.preload; i++ {
+		r.updateCache(-1, r.index+i)
+		r.updateCache(-1, r.index-i)
+	}
 }
 
 func (r *runner) quit() {
@@ -161,6 +184,19 @@ func (r *runner) previous() {
 	r.index--
 	r.show()
 	r.updateCache(r.index+r.preload, r.index-r.preload)
+}
+
+func (r *runner) rate(rating int) {
+	p := r.picts[r.index]
+	err := p.wait()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s: load err: %v", p.name, err)
+		return
+	}
+	err = p.setRating(rating)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s: Failed to set rating: %v", r.picts[r.index].name, err)
+	}
 }
 
 func (r *runner) next() {

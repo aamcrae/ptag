@@ -155,6 +155,24 @@ func (p *Pict) show(win *xwindow.Window) {
 	for _, cr := range p.data.clearList {
 		win.Clear(cr.X(), cr.Y(), cr.Width(), cr.Height())
 	}
+	if *verbose {
+		for k, v := range p.data.exiv {
+			fmt.Printf("%s = %s\n", exivToSet[k], v)
+		}
+	}
+}
+
+func (p *Pict) setRating(rating int) error {
+	if *verbose {
+		fmt.Printf("Set rating of %s to %d\n", p.name, rating)
+	}
+	sr := fmt.Sprintf("%d", rating)
+	err := setExiv(p.path, Exiv{EXIV_RATING: sr})
+	if err == nil {
+		// Update the current values
+		p.data.exiv[EXIV_RATING] = sr
+	}
+	return nil
 }
 
 // unload clears out the image data and sets the picture to unloaded

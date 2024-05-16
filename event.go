@@ -22,6 +22,8 @@ const (
 	E_PREVIOUS
 	E_QUIT
 	E_RESIZE
+	E_RESIZE_NOSHOW
+	E_RATING
 )
 
 func initEvent() (<-chan event, chan<- event) {
@@ -47,7 +49,7 @@ func eventHandler(in chan event, out chan event) {
 				h = ev.h
 			default:
 				if resizeActive {
-					in <- event{E_RESIZE, w, h}
+					in <- event{E_RESIZE_NOSHOW, w, h}
 					resizeActive = false
 					ticks = 0
 				}
