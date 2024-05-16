@@ -15,11 +15,14 @@ package main
 import (
 	"flag"
 	"fmt"
+	"os"
 	"runtime"
 )
 
 var verbose = flag.Bool("verbose", false, "Verbose tracing")
 var maxPreload = flag.Int("preload", 10, "Maximum images to concurrently load")
+var width = flag.Int("width", 0, "Window width")
+var height = flag.Int("height", 0, "Window height")
 
 func main() {
 	flag.Parse()
@@ -42,6 +45,10 @@ func main() {
 	if *verbose {
 		fmt.Printf("%d files in total, preload = %d\n", len(f), preload)
 	}
-	r := &runner{width: 1500, height: 800, preload: preload}
-	r.Start(f)
+	r, err := newRunner(*width, *height, preload)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "init: %v", err)
+		return
+	}
+	r.start(f)
 }

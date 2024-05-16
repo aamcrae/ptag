@@ -17,6 +17,7 @@ import (
 
 	"github.com/jezek/xgbutil"
 	"github.com/jezek/xgbutil/xgraphics"
+	"github.com/jezek/xgbutil/xrect"
 	"github.com/jezek/xgbutil/xwindow"
 )
 
@@ -27,28 +28,30 @@ type Exiv map[int]string
 // Temporary data, present only when the image
 // is loaded.
 type Data struct {
-	exiv Exiv             // Current EXIF data
-	img  *xgraphics.Image // Converted image
+	rect      xrect.Rect       // Geometry of image
+	clearList []xrect.Rect     // Areas to clear
+	exiv      Exiv             // Current EXIF data
+	img       *xgraphics.Image // Converted image
 }
 
 type Pict struct {
-	state         int    // Current state
-	path          string // Filename of picture
-	name          string // short name
-	index         int
-	err           error          // Error during loading
-	ready         sync.WaitGroup // lock for loading
-	X             *xgbutil.XUtil // X server connection
-	width, height int            // Window size
-	x, y          int            // Starting location
-	data          *Data          // Image data, nil if unloaded
+	state  int    // Current state
+	path   string // Filename of picture
+	name   string // short name
+	index  int
+	width  int
+	height int
+	err    error          // Error during loading
+	lock   sync.WaitGroup // lock for loading
+	X      *xgbutil.XUtil // X server connection
+	data   *Data          // Image data, nil if unloaded
 }
 
 type runner struct {
-	X             *xgbutil.XUtil  // X server connection
-	win           *xwindow.Window // Display window
-	width, height int             // Current window size
-	picts         []*Pict         // Pictures
-	index         int             // Current picture
-	preload       int
+	X       *xgbutil.XUtil  // X server connection
+	win     *xwindow.Window // Display window
+	geom    xrect.Rect      // Bounding box of window
+	picts   []*Pict         // Pictures
+	index   int             // Current picture
+	preload int
 }
