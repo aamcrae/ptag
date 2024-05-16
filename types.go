@@ -55,3 +55,9 @@ type runner struct {
 	index   int             // Current picture
 	preload int
 }
+
+type event struct {
+	event int
+	w     int
+	h     int
+}

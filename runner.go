@@ -72,6 +72,7 @@ func newRunner(width, height, preload int) (*runner, error) {
 }
 
 func (r *runner) start(f []string) {
+	inEvent, outEvent := initEvent()
 	// Create a pict structure for every image
 	for i, file := range f {
 		p := NewPict(file, r.X, i)
@@ -82,9 +83,7 @@ func (r *runner) start(f []string) {
 	}
 	xevent.ConfigureNotifyFun(
 		func(X *xgbutil.XUtil, e xevent.ConfigureNotifyEvent) {
-			if int(e.Width) != r.geom.Width() || int(e.Height) != r.geom.Height() {
-				r.resize(int(e.Width), int(e.Height))
-			}
+			outEvent <- event{E_RESIZE, int(e.Width), int(e.Height)}
 		}).Connect(r.X, r.win.Id)
 	xevent.KeyPressFun(
 		func(X *xgbutil.XUtil, e xevent.KeyPressEvent) {
@@ -94,17 +93,36 @@ func (r *runner) start(f []string) {
 			}
 			switch keyStr {
 			case "q":
-				r.quit()
+				outEvent <- event{E_QUIT, 0, 0}
 			case "n":
-				r.next()
+				outEvent <- event{E_NEXT, 0, 0}
 			case "p":
-				r.previous()
+				outEvent <- event{E_PREVIOUS, 0, 0}
 			}
 		}).Connect(r.X, r.win.Id)
 	r.win.Map()
 	// Display the first picture
 	r.show()
-	xevent.Main(r.X)
+	xc1, xc2, xcExit := xevent.MainPing(r.X)
+	for {
+		select {
+		case <-xc1:
+		case <-xc2:
+		case <-xcExit:
+			return
+		case ev := <-inEvent:
+			switch ev.event {
+			case E_RESIZE:
+				r.resize(ev.w, ev.h)
+			case E_NEXT:
+				r.next()
+			case E_PREVIOUS:
+				r.previous()
+			case E_QUIT:
+				r.quit()
+			}
+		}
+	}
 }
 
 func (r *runner) show() {
@@ -120,6 +138,12 @@ func (r *runner) show() {
 
 // Resize notification.
 func (r *runner) resize(w, h int) {
+	if *verbose {
+		fmt.Printf("Resize to %d x %d (current %d x %d)\n", w, h, r.geom.Width(), r.geom.Height())
+	}
+	if w == r.geom.Width() && h == r.geom.Height() {
+		return
+	}
 	r.geom.WidthSet(w)
 	r.geom.HeightSet(h)
 	r.picts[r.index].startLoad(r.geom)
