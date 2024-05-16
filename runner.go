@@ -66,7 +66,8 @@ func newRunner(width, height, preload int) (*runner, error) {
 	// Normalise the window geometry to (0, 0)
 	geom.XSet(0)
 	geom.YSet(0)
-	win.Listen(xproto.EventMaskKeyPress, xproto.EventMaskKeyRelease)
+	win.Listen(xproto.EventMaskStructureNotify, xproto.EventMaskSubstructureNotify,
+		xproto.EventMaskKeyPress, xproto.EventMaskKeyRelease)
 	return &runner{X: X, win: win, preload: preload, geom: geom}, nil
 }
 
@@ -79,6 +80,12 @@ func (r *runner) start(f []string) {
 			p.startLoad(r.geom)
 		}
 	}
+	xevent.ConfigureNotifyFun(
+		func(X *xgbutil.XUtil, e xevent.ConfigureNotifyEvent) {
+			if int(e.Width) != r.geom.Width() || int(e.Height) != r.geom.Height() {
+				r.resize(int(e.Width), int(e.Height))
+			}
+		}).Connect(r.X, r.win.Id)
 	xevent.KeyPressFun(
 		func(X *xgbutil.XUtil, e xevent.KeyPressEvent) {
 			keyStr := keybind.LookupString(X, e.State, e.Detail)
@@ -109,6 +116,14 @@ func (r *runner) show() {
 		return
 	}
 	p.show(r.win)
+}
+
+// Resize notification.
+func (r *runner) resize(w, h int) {
+	r.geom.WidthSet(w)
+	r.geom.HeightSet(h)
+	r.picts[r.index].startLoad(r.geom)
+	r.show()
 }
 
 func (r *runner) quit() {
