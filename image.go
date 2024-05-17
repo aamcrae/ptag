@@ -122,7 +122,7 @@ func (p *Pict) load(winGeom xrect.Rect) {
 	// Build a list of rectangles to be cleared (if any)
 	p.data.clearList = xrect.Subtract(winGeom, p.data.rect)
 	if *verbose {
-		fmt.Printf("%s: scale to %d, %d, start %d, %d\n", p.name, w, h, x, y)
+		fmt.Printf("%s (%d): scale to %d, %d, start %d, %d\n", p.name, p.index, w, h, x, y)
 		for _, cr := range p.data.clearList {
 			fmt.Printf("clear: (%d, %d) [%d, %d]\n", cr.X(), cr.Y(), cr.Width(), cr.Height())
 		}
@@ -160,6 +160,10 @@ func (p *Pict) show(win *xwindow.Window) {
 			fmt.Printf("%s = %s\n", exivToSet[k], v)
 		}
 	}
+}
+
+func (p *Pict) setTitle(title string) {
+	p.title = title
 }
 
 func (p *Pict) setRating(rating int) error {

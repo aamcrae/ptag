@@ -68,7 +68,7 @@ func newRunner(width, height, preload int) (*runner, error) {
 	geom.YSet(0)
 	win.Listen(xproto.EventMaskStructureNotify, xproto.EventMaskSubstructureNotify,
 		xproto.EventMaskKeyPress, xproto.EventMaskKeyRelease)
-	return &runner{X: X, win: win, preload: preload, geom: geom}, nil
+	return &runner{X: X, win: win, preload: preload, geom: geom, loaded: map[int]nothing{}}, nil
 }
 
 func (r *runner) start(f []string) {
@@ -76,18 +76,21 @@ func (r *runner) start(f []string) {
 	// Create a pict structure for every image
 	for i, file := range f {
 		p := NewPict(file, r.X, i)
+		p.setTitle(fmt.Sprintf("%s (%d/%d)", p.name, i+1, len(f)))
 		r.picts = append(r.picts, p)
-		if i < r.preload {
-			p.startLoad(r.geom)
-		}
 	}
+	r.addCache(0)
 	xevent.ConfigureNotifyFun(
 		func(X *xgbutil.XUtil, e xevent.ConfigureNotifyEvent) {
 			outEvent <- event{E_RESIZE, int(e.Width), int(e.Height)}
 		}).Connect(r.X, r.win.Id)
 	xevent.KeyPressFun(
 		func(X *xgbutil.XUtil, e xevent.KeyPressEvent) {
+			modStr := keybind.ModifierString(e.State)
 			keyStr := keybind.LookupString(X, e.State, e.Detail)
+			if len(modStr) != 0 {
+				keyStr = fmt.Sprintf("%s-%s", modStr, keyStr)
+			}
 			if *verbose {
 				fmt.Printf("Key: %s\n", keyStr)
 			}
@@ -95,9 +98,17 @@ func (r *runner) start(f []string) {
 			case "q":
 				outEvent <- event{E_QUIT, 0, 0}
 			case "n", " ", "Right", "KP_Right":
-				outEvent <- event{E_NEXT, 0, 0}
+				outEvent <- event{E_STEP, 1, 0}
 			case "p", "Left", "KP_Left":
-				outEvent <- event{E_PREVIOUS, 0, 0}
+				outEvent <- event{E_STEP, -1, 0}
+			case "KP_Up", "Up":
+				outEvent <- event{E_STEP, -10, 0}
+			case "KP_Down", "Down":
+				outEvent <- event{E_STEP, 10, 0}
+			case "Home", "KP_Home":
+				outEvent <- event{E_JUMP, 0, 0}
+			case "End", "KP_End":
+				outEvent <- event{E_JUMP, len(r.picts) - 1, 0}
 			case "0":
 				outEvent <- event{E_RATING, 0, 0}
 			case "1":
@@ -115,6 +126,8 @@ func (r *runner) start(f []string) {
 	r.win.Map()
 	// Display the first picture
 	r.show()
+	// Preload next pictures
+	r.cacheUpdate()
 	xc1, xc2, xcExit := xevent.MainPing(r.X)
 	for {
 		select {
@@ -125,15 +138,13 @@ func (r *runner) start(f []string) {
 		case ev := <-inEvent:
 			switch ev.event {
 			case E_RESIZE:
-				r.resize(ev.w, ev.h, true)
-			case E_RESIZE_NOSHOW:
-				r.resize(ev.w, ev.h, false)
+				r.resize(ev.w, ev.h)
 			case E_RATING:
 				r.rate(ev.w)
-			case E_NEXT:
-				r.next()
-			case E_PREVIOUS:
-				r.previous()
+			case E_STEP:
+				r.setIndex(r.index + ev.w)
+			case E_JUMP:
+				r.setIndex(ev.w)
 			case E_QUIT:
 				r.quit()
 			}
@@ -143,7 +154,7 @@ func (r *runner) start(f []string) {
 
 func (r *runner) show() {
 	p := r.picts[r.index]
-	defer ewmh.WmNameSet(r.X, r.win.Id, p.name)
+	defer ewmh.WmNameSet(r.X, r.win.Id, p.title)
 	err := p.wait()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: load err: %v", p.name, err)
@@ -153,37 +164,24 @@ func (r *runner) show() {
 }
 
 // Resize notification.
-func (r *runner) resize(w, h int, current bool) {
-	if *verbose {
-		fmt.Printf("Resize to %d x %d (current %d x %d)\n", w, h, r.geom.Width(), r.geom.Height())
-	}
+func (r *runner) resize(w, h int) {
 	if w == r.geom.Width() && h == r.geom.Height() {
 		return
 	}
+	if *verbose {
+		fmt.Printf("Resize to %d x %d (current %d x %d)\n", w, h, r.geom.Width(), r.geom.Height())
+	}
 	r.geom.WidthSet(w)
 	r.geom.HeightSet(h)
-	r.picts[r.index].startLoad(r.geom)
-	if current {
-		r.show()
-	}
-	// Refresh the cached loads.
-	for i := 1; i < r.preload; i++ {
-		r.updateCache(-1, r.index+i)
-		r.updateCache(-1, r.index-i)
-	}
+	r.flushCache()
+	// current picture should be redrawn.
+	r.addCache(r.index)
+	r.show()
+	r.cacheUpdate()
 }
 
 func (r *runner) quit() {
 	xevent.Quit(r.X)
-}
-
-func (r *runner) previous() {
-	if r.index == 0 {
-		return
-	}
-	r.index--
-	r.show()
-	r.updateCache(r.index+r.preload, r.index-r.preload)
 }
 
 func (r *runner) rate(rating int) {
@@ -199,20 +197,82 @@ func (r *runner) rate(rating int) {
 	}
 }
 
-func (r *runner) next() {
-	if r.index < len(r.picts)-1 {
-		r.index++
-		r.show()
-		r.updateCache(r.index-r.preload-1, r.index+r.preload-1)
+func (r *runner) setIndex(newIndex int) {
+	if newIndex < 0 {
+		newIndex = 0
+	}
+	if newIndex >= len(r.picts) {
+		newIndex = len(r.picts) - 1
+	}
+	r.index = newIndex
+	r.addCache(r.index)
+	r.show()
+	r.cacheUpdate()
+}
+
+// Update the cached set of images
+func (r *runner) cacheUpdate() {
+	// Map of items to cache
+	nc := map[int]nothing{}
+	// List of new items
+	var newEntries []int
+	count := r.preload + 1
+	if count > len(r.picts) {
+		count = len(r.picts)
+	}
+	f := func(index int) {
+		if index >= 0 && index < len(r.picts) && count > 0 {
+			_, ok := r.loaded[index]
+			if !ok {
+				// new entry
+				newEntries = append(newEntries, index)
+			}
+			// Flag item for caching
+			nc[index] = nothing{}
+			count--
+		}
+	}
+	// Bias the preload going forwards
+	start := r.index + r.preload/4
+	before := start
+	after := start + 1
+	for count > 0 {
+		f(before)
+		f(after)
+		before--
+		after++
+	}
+	// Unload any items not in the new cache
+	for k, _ := range r.loaded {
+		_, ok := nc[k]
+		if !ok {
+			r.removeCache(k)
+		}
+	}
+	// Begin loading new items - we do this after unloading the expired entries
+	for _, index := range newEntries {
+		r.addCache(index)
 	}
 }
 
-// Update the cached images, unloading one and start to load another.
-func (r *runner) updateCache(clean, load int) {
-	if clean >= 0 && clean < len(r.picts) {
-		r.picts[clean].unload()
+func (r *runner) flushCache() {
+	for k, _ := range r.loaded {
+		r.removeCache(k)
 	}
-	if load >= 0 && load < len(r.picts) {
-		r.picts[load].startLoad(r.geom)
+}
+
+func (r *runner) removeCache(index int) {
+	_, ok := r.loaded[index]
+	if ok {
+		delete(r.loaded, index)
+		r.picts[index].unload()
+	}
+}
+
+func (r *runner) addCache(index int) {
+	_, ok := r.loaded[index]
+	if !ok {
+		r.loaded[index] = nothing{}
+		r.picts[index].startLoad(r.geom)
 	}
 }

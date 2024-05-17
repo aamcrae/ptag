@@ -38,6 +38,7 @@ type Pict struct {
 	state  int    // Current state
 	path   string // Filename of picture
 	name   string // short name
+	title  string // window title
 	index  int
 	width  int
 	height int
@@ -54,6 +55,7 @@ type runner struct {
 	picts   []*Pict         // Pictures
 	index   int             // Current picture
 	preload int
+	loaded  map[int]nothing
 }
 
 type event struct {

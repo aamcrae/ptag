@@ -18,11 +18,10 @@ import (
 
 // Event types
 const (
-	E_NEXT = iota
-	E_PREVIOUS
+	E_STEP = iota
+	E_JUMP
 	E_QUIT
 	E_RESIZE
-	E_RESIZE_NOSHOW
 	E_RATING
 )
 
@@ -37,31 +36,30 @@ func eventHandler(in chan event, out chan event) {
 	t := time.NewTicker(time.Millisecond * 100)
 	var resizeActive bool
 	var w, h int
-	var ticks int
+	var ticksResize int
 	for {
 		select {
 		case ev := <-out:
 			switch ev.event {
 			case E_RESIZE:
+				// Cache the resize update
 				resizeActive = true
-				ticks = 0
+				ticksResize = 0
 				w = ev.w
 				h = ev.h
 			default:
 				if resizeActive {
-					in <- event{E_RESIZE_NOSHOW, w, h}
+					in <- event{E_RESIZE, w, h}
 					resizeActive = false
-					ticks = 0
 				}
 				in <- ev
 			}
 		case <-t.C:
 			if resizeActive {
-				ticks++
-				if ticks >= 4 {
-					resizeActive = false
+				ticksResize++
+				if ticksResize >= 5 {
 					in <- event{E_RESIZE, w, h}
-					ticks = 0
+					resizeActive = false
 				}
 			}
 		}
