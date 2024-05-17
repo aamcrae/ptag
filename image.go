@@ -37,7 +37,7 @@ const (
 // Create a new Pict, representing an image.
 func NewPict(file string, win fyne.Window, index int) *Pict {
 	_, f := path.Split(file)
-	return &Pict{state: I_UNLOADED, path: file, name: f, win: win, index: index}
+	return &Pict{state: I_UNLOADED, path: file, name: f, index: index}
 }
 
 // wait waits for image loading to complete, and then
@@ -70,7 +70,7 @@ func (p *Pict) startLoad() {
 
 // load reads and processes the image ready for display.
 // wait() must be called before the image can be accessed to
-// ensure that the state is valid.
+// ensure that the load is complete.
 func (p *Pict) load() {
 	defer p.lock.Done()
 	p.clean()
@@ -106,6 +106,7 @@ func (p *Pict) load() {
 	p.state = I_LOADED
 }
 
+// show writes the image to the window.
 func (p *Pict) show(win fyne.Window) {
 	if *verbose {
 		fmt.Printf("showing image %s (index %d)\n", p.name, p.index)
@@ -121,10 +122,12 @@ func (p *Pict) show(win fyne.Window) {
 	}
 }
 
+// setTitle sets the window title for this image.
 func (p *Pict) setTitle(title string) {
 	p.title = title
 }
 
+// setRating sets a rating (0-5) on this image.
 func (p *Pict) setRating(rating int) error {
 	if *verbose {
 		fmt.Printf("Set rating of %s to %d\n", p.name, rating)
@@ -138,17 +141,18 @@ func (p *Pict) setRating(rating int) error {
 	return nil
 }
 
-// unload clears out the image data and sets the picture to unloaded
+// unload clears out the image data and sets the picture to unloaded.
 func (p *Pict) unload() {
 	if p.state != I_UNLOADED {
 		if *verbose {
 			fmt.Printf("Unloading %s, index %d\n", p.name, p.index)
 		}
-		p.wait() // Ensure not currently loading
+		p.wait() // If loading, wait for the load to complete before clearing.
 		p.clean()
 	}
 }
 
+// clean unloads the image to free the memory.
 func (p *Pict) clean() {
 	if p.img != nil {
 	}

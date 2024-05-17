@@ -23,7 +23,7 @@ import (
 
 func newRunner(width, height, preload int) (*runner, error) {
 	a := app.New()
-	// Create a window
+	// Create a window to display the images.
 	win := a.NewWindow("ptag")
 	win.SetMaster()
 	sz := fyne.NewSize(float32(width), float32(height))
@@ -32,13 +32,14 @@ func newRunner(width, height, preload int) (*runner, error) {
 }
 
 func (r *runner) start(f []string) {
-	//inEvent, outEvent := initEvent()
 	// Create a pict structure for every image
 	for i, file := range f {
 		p := NewPict(file, r.win, i)
 		p.setTitle(fmt.Sprintf("%s (%d/%d)", p.name, i+1, len(f)))
 		r.picts = append(r.picts, p)
 	}
+	// Add the first picture to the cache and start loading it.
+	r.addCache(0)
 	// Add key handler
 	if deskCanvas, ok := r.win.Canvas().(desktop.Canvas); ok {
 		deskCanvas.SetOnKeyDown(func(key *fyne.KeyEvent) {
@@ -75,14 +76,14 @@ func (r *runner) start(f []string) {
 			}
 		})
 	}
-	r.addCache(0)
-	// Display the first picture
 	r.show()
-	// Preload next pictures
+	// Preload other images
 	r.cacheUpdate()
+	// Main runloop.
 	r.app.Run()
 }
 
+// Show the current image from the cache.
 func (r *runner) show() {
 	p := r.picts[r.index]
 	defer r.win.SetTitle(p.title)
@@ -92,33 +93,19 @@ func (r *runner) show() {
 		return
 	}
 	p.show(r.win)
+	// The first image to be displayed shows the window.
 	if !r.visible {
 		r.win.Show()
 		r.visible = true
 	}
 }
 
-// Resize notification. This may be sent on the initial image.
-func (r *runner) resize(w, h int) {
-	/*
-		if r.index != 0 && w == r.geom.Width() && h == r.geom.Height() {
-			return
-		}
-		if *verbose {
-			fmt.Printf("Resize to %d x %d (current %d x %d)\n", w, h, r.geom.Width(), r.geom.Height())
-		}
-	*/
-	r.flushCache()
-	// current picture should be redrawn.
-	r.addCache(r.index)
-	r.show()
-	r.cacheUpdate()
-}
-
+// quit exits the app
 func (r *runner) quit() {
 	r.app.Quit()
 }
 
+// rate sets the rating on the current picture
 func (r *runner) rate(rating int) {
 	p := r.picts[r.index]
 	err := p.wait()
@@ -132,6 +119,7 @@ func (r *runner) rate(rating int) {
 	}
 }
 
+// setIndex selects the image to display.
 func (r *runner) setIndex(newIndex int) {
 	if newIndex < 0 {
 		newIndex = 0
@@ -145,7 +133,7 @@ func (r *runner) setIndex(newIndex int) {
 	r.cacheUpdate()
 }
 
-// Update the cached set of images
+// cacheUpdate updates the cached set of images
 func (r *runner) cacheUpdate() {
 	// Map of items to cache
 	nc := map[int]nothing{}
@@ -188,12 +176,14 @@ func (r *runner) cacheUpdate() {
 	}
 }
 
+// flushCache removes all the items from the cache.
 func (r *runner) flushCache() {
 	for k, _ := range r.loaded {
 		r.removeCache(k)
 	}
 }
 
+// removeCache removes one image from the cache.
 func (r *runner) removeCache(index int) {
 	if _, ok := r.loaded[index]; ok {
 		delete(r.loaded, index)
@@ -201,6 +191,7 @@ func (r *runner) removeCache(index int) {
 	}
 }
 
+// addCache adds this image to the cache and initiates loading it.
 func (r *runner) addCache(index int) {
 	if _, ok := r.loaded[index]; !ok {
 		r.loaded[index] = nothing{}
