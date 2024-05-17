@@ -23,12 +23,6 @@ type nothing struct{}
 
 type Exiv map[int]string
 
-// Temporary data, present only when the image
-// is loaded.
-type Data struct {
-	img *canvas.Image // Converted image
-}
-
 type Pict struct {
 	state int    // Current state
 	path  string // Filename of picture
@@ -39,7 +33,7 @@ type Pict struct {
 	err   error          // Error during loading
 	lock  sync.WaitGroup // lock for loading
 	exiv  Exiv           // Current EXIF data
-	data  *Data          // Image data, nil if unloaded
+	img   *canvas.Image  // Image data, nil if unloaded
 }
 
 type runner struct {
@@ -51,10 +45,4 @@ type runner struct {
 	preload int
 	loaded  map[int]nothing
 	visible bool
-}
-
-type event struct {
-	event int
-	w     int
-	h     int
 }

@@ -87,10 +87,9 @@ func (p *Pict) load() {
 		p.err = err
 		return
 	}
-	p.data = new(Data)
-	p.data.img = canvas.NewImageFromImage(img)
-	p.data.img.ScaleMode = canvas.ImageScaleFastest
-	p.data.img.FillMode = canvas.ImageFillContain
+	p.img = canvas.NewImageFromImage(img)
+	p.img.ScaleMode = canvas.ImageScaleFastest
+	p.img.FillMode = canvas.ImageFillContain
 	// Image processing is done. Now read the EXIF data if it
 	// doesn't already exist
 	if p.exiv == nil {
@@ -112,7 +111,7 @@ func (p *Pict) show(win fyne.Window) {
 		fmt.Printf("showing image %s (index %d)\n", p.name, p.index)
 	}
 	// Write the image.
-	win.SetContent(p.data.img)
+	win.SetContent(p.img)
 	win.SetTitle(p.title)
 	if *verbose {
 		fmt.Printf("show: %v\n", win.Content().Size())
@@ -151,8 +150,8 @@ func (p *Pict) unload() {
 }
 
 func (p *Pict) clean() {
-	if p.data != nil && p.data.img != nil {
+	if p.img != nil {
 	}
 	p.state = I_UNLOADED
-	p.data = nil
+	p.img = nil
 }
