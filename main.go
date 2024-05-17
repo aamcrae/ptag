@@ -23,7 +23,6 @@ var verbose = flag.Bool("verbose", false, "Verbose tracing")
 var maxPreload = flag.Int("preload", 10, "Maximum images to concurrently load")
 var width = flag.Int("width", 1500, "Window width")
 var height = flag.Int("height", 1200, "Window height")
-var prescale = flag.Bool("prescale", false, "Prescale the images")
 
 func main() {
 	flag.Parse()

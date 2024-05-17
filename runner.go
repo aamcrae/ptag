@@ -92,7 +92,6 @@ func (r *runner) show() {
 		return
 	}
 	p.show(r.win)
-	fmt.Printf("Visible content = %v\n", r.win.Content().Visible())
 	if !r.visible {
 		r.win.Show()
 		r.visible = true
@@ -204,8 +203,7 @@ func (r *runner) removeCache(index int) {
 
 func (r *runner) addCache(index int) {
 	if _, ok := r.loaded[index]; !ok {
-		fmt.Printf("Start load of %d\n", index)
 		r.loaded[index] = nothing{}
-		r.picts[index].startLoad(r.size)
+		r.picts[index].startLoad()
 	}
 }

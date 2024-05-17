@@ -20,7 +20,6 @@ import (
 	_ "image/png"
 	"os"
 	"path"
-	"time"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
@@ -53,13 +52,12 @@ func (p *Pict) wait() error {
 
 // startLoad sets up to load the image.
 // The actual reading is delegated to a background goroutine.
-func (p *Pict) startLoad(sz fyne.Size) {
+func (p *Pict) startLoad() {
 	p.wait() // Ensure not already loading
 	// If loaded already, and scaled to match the current window size, don't reload
 	if p.state == I_LOADED {
 		return
 	}
-	p.size = sz
 	// The image is not loaded.
 	p.unload()
 	if *verbose {
@@ -89,17 +87,10 @@ func (p *Pict) load() {
 		p.err = err
 		return
 	}
-	now := time.Now()
 	p.data = new(Data)
 	p.data.img = canvas.NewImageFromImage(img)
 	p.data.img.ScaleMode = canvas.ImageScaleFastest
-	if *prescale {
-		p.data.img.FillMode = canvas.ImageFillContain
-		p.data.img.Resize(p.size)
-	} else {
-		p.data.img.FillMode = canvas.ImageFillContain
-	}
-	fmt.Printf("image processing time = %d us\n", time.Now().Sub(now).Microseconds())
+	p.data.img.FillMode = canvas.ImageFillContain
 	// Image processing is done. Now read the EXIF data if it
 	// doesn't already exist
 	if p.exiv == nil {
@@ -121,9 +112,7 @@ func (p *Pict) show(win fyne.Window) {
 		fmt.Printf("showing image %s (index %d)\n", p.name, p.index)
 	}
 	// Write the image.
-	now := time.Now()
 	win.SetContent(p.data.img)
-	fmt.Printf("image show time = %d us\n", time.Now().Sub(now).Microseconds())
 	win.SetTitle(p.title)
 	if *verbose {
 		fmt.Printf("show: %v\n", win.Content().Size())

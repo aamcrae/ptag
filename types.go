@@ -36,7 +36,6 @@ type Pict struct {
 	title string // window title
 	index int
 	win   fyne.Window
-	size  fyne.Size
 	err   error          // Error during loading
 	lock  sync.WaitGroup // lock for loading
 	exiv  Exiv           // Current EXIF data
