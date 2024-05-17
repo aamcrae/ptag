@@ -16,163 +16,99 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/jezek/xgb/xproto"
-
-	"github.com/jezek/xgbutil"
-	"github.com/jezek/xgbutil/ewmh"
-	"github.com/jezek/xgbutil/keybind"
-	"github.com/jezek/xgbutil/xevent"
-	"github.com/jezek/xgbutil/xwindow"
+	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/app"
+	"fyne.io/fyne/v2/driver/desktop"
 )
 
 func newRunner(width, height, preload int) (*runner, error) {
-	X, err := xgbutil.NewConn()
-	if err != nil {
-		return nil, err
-	}
-	keybind.Initialize(X)
+	a := app.New()
 	// Create a window
-	win, err := xwindow.Generate(X)
-	if err != nil {
-		return nil, err
-	}
-	// Get the size of the root window.
-	rootGeom := xwindow.RootGeometry(X)
-	// If the width or height haven't been preset,
-	// create a window taking up 1/2 the space
-	if width == 0 || height == 0 {
-		width = rootGeom.Width() / 2
-		height = rootGeom.Height() / 2
-	}
-	win.CreateChecked(X.RootWin(), rootGeom.Width()/4, rootGeom.Height()/4, width, height, xproto.CwBackPixel, 0)
-	win.WMGracefulClose(func(w *xwindow.Window) {
-		xevent.Detach(w.X, w.Id)
-		keybind.Detach(w.X, w.Id)
-		w.Destroy()
-		xevent.Quit(w.X)
-	})
-	ewmh.WmNameSet(X, win.Id, "Initialising...")
-	geom, err := win.Geometry()
-	if err != nil {
-		return nil, err
-	}
-	if *verbose {
-		if err != nil {
-			fmt.Printf("Unable to read geometry: %v\n", err)
-		} else {
-			fmt.Printf("Window at (%d, %d), size [%d x %d]\n", geom.X(), geom.Y(), geom.Width(), geom.Height())
-		}
-	}
-	// Normalise the window geometry to (0, 0)
-	geom.XSet(0)
-	geom.YSet(0)
-	win.Listen(xproto.EventMaskStructureNotify, xproto.EventMaskSubstructureNotify,
-		xproto.EventMaskKeyPress, xproto.EventMaskKeyRelease)
-	return &runner{X: X, win: win, preload: preload, geom: geom, loaded: map[int]nothing{}}, nil
+	win := a.NewWindow("ptag")
+	win.SetMaster()
+	sz := fyne.NewSize(float32(width), float32(height))
+	win.Resize(sz)
+	return &runner{app: a, win: win, preload: preload, size: sz, loaded: map[int]nothing{}}, nil
 }
 
 func (r *runner) start(f []string) {
-	inEvent, outEvent := initEvent()
+	//inEvent, outEvent := initEvent()
 	// Create a pict structure for every image
 	for i, file := range f {
-		p := NewPict(file, r.X, i)
+		p := NewPict(file, r.win, i)
 		p.setTitle(fmt.Sprintf("%s (%d/%d)", p.name, i+1, len(f)))
 		r.picts = append(r.picts, p)
 	}
-	r.addCache(0)
-	xevent.ConfigureNotifyFun(
-		func(X *xgbutil.XUtil, e xevent.ConfigureNotifyEvent) {
-			outEvent <- event{E_RESIZE, int(e.Width), int(e.Height)}
-		}).Connect(r.X, r.win.Id)
-	xevent.KeyPressFun(
-		func(X *xgbutil.XUtil, e xevent.KeyPressEvent) {
-			modStr := keybind.ModifierString(e.State)
-			keyStr := keybind.LookupString(X, e.State, e.Detail)
-			if len(modStr) != 0 {
-				keyStr = fmt.Sprintf("%s-%s", modStr, keyStr)
-			}
+	// Add key handler
+	if deskCanvas, ok := r.win.Canvas().(desktop.Canvas); ok {
+		deskCanvas.SetOnKeyDown(func(key *fyne.KeyEvent) {
 			if *verbose {
-				fmt.Printf("Key: %s\n", keyStr)
+				fmt.Printf("Key: %s\n", key.Name)
 			}
-			switch keyStr {
-			case "q":
-				outEvent <- event{E_QUIT, 0, 0}
-			case "n", " ", "Right", "KP_Right":
-				outEvent <- event{E_STEP, 1, 0}
-			case "p", "Left", "KP_Left":
-				outEvent <- event{E_STEP, -1, 0}
-			case "KP_Up", "Up":
-				outEvent <- event{E_STEP, -10, 0}
-			case "KP_Down", "Down":
-				outEvent <- event{E_STEP, 10, 0}
-			case "Home", "KP_Home":
-				outEvent <- event{E_JUMP, 0, 0}
-			case "End", "KP_End":
-				outEvent <- event{E_JUMP, len(r.picts) - 1, 0}
-			case "0":
-				outEvent <- event{E_RATING, 0, 0}
-			case "1":
-				outEvent <- event{E_RATING, 1, 0}
-			case "2":
-				outEvent <- event{E_RATING, 2, 0}
-			case "3":
-				outEvent <- event{E_RATING, 3, 0}
-			case "4":
-				outEvent <- event{E_RATING, 0, 0}
-			case "5":
-				outEvent <- event{E_RATING, 5, 0}
+			switch key.Name {
+			case fyne.KeyUp, fyne.KeyPageUp:
+				r.setIndex(r.index - 10)
+			case fyne.KeyDown, fyne.KeyPageDown:
+				r.setIndex(r.index + 10)
+			case "N", fyne.KeyRight:
+				r.setIndex(r.index + 1)
+			case "P", fyne.KeyLeft:
+				r.setIndex(r.index - 1)
+			case fyne.KeyHome:
+				r.setIndex(0)
+			case fyne.KeyEnd:
+				r.setIndex(len(r.picts) - 1)
+			case "Q":
+				r.quit()
+			case fyne.Key0:
+				r.rate(0)
+			case fyne.Key1:
+				r.rate(1)
+			case fyne.Key2:
+				r.rate(2)
+			case fyne.Key3:
+				r.rate(3)
+			case fyne.Key4:
+				r.rate(4)
+			case fyne.Key5:
+				r.rate(5)
 			}
-		}).Connect(r.X, r.win.Id)
-	r.win.Map()
+		})
+	}
+	r.addCache(0)
 	// Display the first picture
 	r.show()
 	// Preload next pictures
 	r.cacheUpdate()
-	xc1, xc2, xcExit := xevent.MainPing(r.X)
-	for {
-		select {
-		case <-xc1:
-		case <-xc2:
-		case <-xcExit:
-			return
-		case ev := <-inEvent:
-			switch ev.event {
-			case E_RESIZE:
-				r.resize(ev.w, ev.h)
-			case E_RATING:
-				r.rate(ev.w)
-			case E_STEP:
-				r.setIndex(r.index + ev.w)
-			case E_JUMP:
-				r.setIndex(ev.w)
-			case E_QUIT:
-				r.quit()
-			}
-		}
-	}
+	r.app.Run()
 }
 
 func (r *runner) show() {
 	p := r.picts[r.index]
-	defer ewmh.WmNameSet(r.X, r.win.Id, p.title)
+	defer r.win.SetTitle(p.title)
 	err := p.wait()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: load err: %v", p.name, err)
 		return
 	}
 	p.show(r.win)
+	fmt.Printf("Visible content = %v\n", r.win.Content().Visible())
+	if !r.visible {
+		r.win.Show()
+		r.visible = true
+	}
 }
 
 // Resize notification. This may be sent on the initial image.
 func (r *runner) resize(w, h int) {
-	if r.index != 0 && w == r.geom.Width() && h == r.geom.Height() {
-		return
-	}
-	if *verbose {
-		fmt.Printf("Resize to %d x %d (current %d x %d)\n", w, h, r.geom.Width(), r.geom.Height())
-	}
-	r.geom.WidthSet(w)
-	r.geom.HeightSet(h)
+	/*
+		if r.index != 0 && w == r.geom.Width() && h == r.geom.Height() {
+			return
+		}
+		if *verbose {
+			fmt.Printf("Resize to %d x %d (current %d x %d)\n", w, h, r.geom.Width(), r.geom.Height())
+		}
+	*/
 	r.flushCache()
 	// current picture should be redrawn.
 	r.addCache(r.index)
@@ -181,7 +117,7 @@ func (r *runner) resize(w, h int) {
 }
 
 func (r *runner) quit() {
-	xevent.Quit(r.X)
+	r.app.Quit()
 }
 
 func (r *runner) rate(rating int) {
@@ -222,8 +158,7 @@ func (r *runner) cacheUpdate() {
 	}
 	f := func(index int) {
 		if index >= 0 && index < len(r.picts) && count > 0 {
-			_, ok := r.loaded[index]
-			if !ok {
+			if _, ok := r.loaded[index]; !ok {
 				// new entry
 				newEntries = append(newEntries, index)
 			}
@@ -244,8 +179,7 @@ func (r *runner) cacheUpdate() {
 	}
 	// Unload any items not in the new cache
 	for k, _ := range r.loaded {
-		_, ok := nc[k]
-		if !ok {
+		if _, ok := nc[k]; !ok {
 			r.removeCache(k)
 		}
 	}
@@ -262,17 +196,16 @@ func (r *runner) flushCache() {
 }
 
 func (r *runner) removeCache(index int) {
-	_, ok := r.loaded[index]
-	if ok {
+	if _, ok := r.loaded[index]; ok {
 		delete(r.loaded, index)
 		r.picts[index].unload()
 	}
 }
 
 func (r *runner) addCache(index int) {
-	_, ok := r.loaded[index]
-	if !ok {
+	if _, ok := r.loaded[index]; !ok {
+		fmt.Printf("Start load of %d\n", index)
 		r.loaded[index] = nothing{}
-		r.picts[index].startLoad(r.geom)
+		r.picts[index].startLoad(r.size)
 	}
 }
