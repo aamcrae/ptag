@@ -163,9 +163,9 @@ func (r *runner) show() {
 	p.show(r.win)
 }
 
-// Resize notification.
+// Resize notification. This may be sent on the initial image.
 func (r *runner) resize(w, h int) {
-	if w == r.geom.Width() && h == r.geom.Height() {
+	if r.index != 0 && w == r.geom.Width() && h == r.geom.Height() {
 		return
 	}
 	if *verbose {
