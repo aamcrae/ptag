@@ -136,12 +136,18 @@ func (p *Pict) load(winGeom xrect.Rect) {
 		return
 	}
 	p.data.img.XDraw()
-	// Image processing is done. Now read the EXIF data.
-	p.data.exiv, err = getExiv(p.path)
-	if err != nil {
-		// We do allow an error when reading the EXIF.
-		// This usually means there is no EXIF headers in the file
-		p.data.exiv = make(Exiv)
+	// Image processing is done. Now read the EXIF data if it
+	// doesn't already exist
+	if p.exiv == nil {
+		p.exiv, err = getExiv(p.path)
+		if err != nil {
+			// We do allow an error when reading the EXIF.
+			// This usually means there is no EXIF headers in the file
+			p.exiv = make(Exiv)
+		}
+		if *verbose {
+			fmt.Printf("%s (%d): exiv loaded: %v\n", p.name, p.index, p.exiv)
+		}
 	}
 	p.state = I_LOADED
 }
@@ -156,7 +162,7 @@ func (p *Pict) show(win *xwindow.Window) {
 		win.Clear(cr.X(), cr.Y(), cr.Width(), cr.Height())
 	}
 	if *verbose {
-		for k, v := range p.data.exiv {
+		for k, v := range p.exiv {
 			fmt.Printf("%s = %s\n", exivToSet[k], v)
 		}
 	}
@@ -174,7 +180,7 @@ func (p *Pict) setRating(rating int) error {
 	err := setExiv(p.path, Exiv{EXIV_RATING: sr})
 	if err == nil {
 		// Update the current values
-		p.data.exiv[EXIV_RATING] = sr
+		p.exiv[EXIV_RATING] = sr
 	}
 	return nil
 }

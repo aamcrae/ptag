@@ -30,7 +30,6 @@ type Exiv map[int]string
 type Data struct {
 	rect      xrect.Rect       // Geometry of image
 	clearList []xrect.Rect     // Areas to clear
-	exiv      Exiv             // Current EXIF data
 	img       *xgraphics.Image // Converted image
 }
 
@@ -45,6 +44,7 @@ type Pict struct {
 	err    error          // Error during loading
 	lock   sync.WaitGroup // lock for loading
 	X      *xgbutil.XUtil // X server connection
+	exiv   Exiv           // Current EXIF data
 	data   *Data          // Image data, nil if unloaded
 }
 
