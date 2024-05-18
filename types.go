@@ -13,15 +13,24 @@
 package main
 
 import (
+	"image"
+	"image/draw"
 	"sync"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
+	"fyne.io/fyne/v2/widget"
 )
 
 type nothing struct{}
 
 type Exiv map[int]string
+
+type Data struct {
+	location image.Rectangle
+	cleared  []image.Rectangle
+	img      image.Image
+}
 
 type Pict struct {
 	state int    // Current state
@@ -32,12 +41,18 @@ type Pict struct {
 	err   error          // Error during loading
 	lock  sync.WaitGroup // lock for loading
 	exiv  Exiv           // Current EXIF data
-	img   *canvas.Image  // Image data, nil if unloaded
+	data  *Data          // Image data, vil if unloaded
 }
 
 type runner struct {
 	app     fyne.App
 	win     fyne.Window
+	rating  *canvas.Rectangle
+	caption *widget.Entry
+	top     *fyne.Container
+	iDraw   draw.Image
+	iCanvas *canvas.Raster
+	cleared []image.Rectangle
 	picts   []*Pict // Pictures
 	size    fyne.Size
 	index   int // Current picture

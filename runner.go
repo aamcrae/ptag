@@ -14,11 +14,20 @@ package main
 
 import (
 	"fmt"
+	"image"
+	"image/color"
+	"image/draw"
 	"os"
+	"time"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
+	"fyne.io/fyne/v2/canvas"
+	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/driver/desktop"
+	"fyne.io/fyne/v2/widget"
+
+	"github.com/davidbyttow/govips/v2/vips"
 )
 
 func newRunner(width, height, preload int) (*runner, error) {
@@ -28,18 +37,36 @@ func newRunner(width, height, preload int) (*runner, error) {
 	win.SetMaster()
 	sz := fyne.NewSize(float32(width), float32(height))
 	win.Resize(sz)
+	fmt.Printf("win scale = %g\n", win.Canvas().Scale())
 	return &runner{app: a, win: win, preload: preload, size: sz, loaded: map[int]nothing{}}, nil
 }
 
 func (r *runner) start(f []string) {
+	vips.LoggingSettings(nil, vips.LogLevelError)
+	vips.Startup(nil)
 	// Create a pict structure for every image
 	for i, file := range f {
 		p := NewPict(file, r.win, i)
 		p.setTitle(fmt.Sprintf("%s (%d/%d)", p.name, i+1, len(f)))
 		r.picts = append(r.picts, p)
 	}
+	// Create some containers for the layout.
+	r.rating = canvas.NewRectangle(color.Black)
+	r.rating.SetMinSize(fyne.NewSize(100, 0))
+	r.caption = widget.NewEntry()
+	r.caption.SetPlaceHolder("Caption is here")
+	r.top = container.NewBorder(nil, nil, r.rating, nil, r.caption)
+	// Create a raster canvas for displaying the image
+	r.iDraw = image.NewRGBA(image.Rect(0, 0, int(r.size.Width), int(r.size.Height)))
+	r.iCanvas = canvas.NewRasterFromImage(r.iDraw)
+	//r.iCanvas.Resize(r.size)
+	combined := container.NewBorder(r.top, nil, nil, nil, r.iCanvas)
+	combined.Refresh()
+	r.win.SetContent(combined)
+	r.win.Show()
+	fmt.Printf("Initial canvase %g, %g, window %g %g\n", r.iCanvas.Size().Width, r.iCanvas.Size().Height, r.win.Canvas().Size().Width, r.win.Canvas().Size().Height)
 	// Add the first picture to the cache and start loading it.
-	r.addCache(0)
+	//r.addCache(0)
 	// Add key handler
 	if deskCanvas, ok := r.win.Canvas().(desktop.Canvas); ok {
 		deskCanvas.SetOnKeyDown(func(key *fyne.KeyEvent) {
@@ -76,9 +103,7 @@ func (r *runner) start(f []string) {
 			}
 		})
 	}
-	r.show()
-	// Preload other images
-	r.cacheUpdate()
+	go r.resizeWatcher()
 	// Main runloop.
 	r.app.Run()
 }
@@ -92,16 +117,47 @@ func (r *runner) show() {
 		fmt.Fprintf(os.Stderr, "%s: load err: %v", p.name, err)
 		return
 	}
-	p.show(r.win)
+	d := p.data
+	if *verbose {
+		fmt.Printf("%s (%d): Showing...\n", p.name, r.index)
+	}
+	draw.Draw(r.iDraw, d.location, d.img, image.ZP, draw.Src)
+	black := image.NewUniform(color.Black)
+	for _, cl := range p.data.cleared {
+		draw.Draw(r.iDraw, cl, black, image.ZP, draw.Src)
+	}
+	r.iCanvas.Refresh()
+	if capt, ok := p.exiv[EXIV_CAPTION]; ok {
+		if *verbose {
+			fmt.Printf("Setting caption text to <%s>\n", capt)
+		}
+		r.caption.SetText(capt)
+	} else {
+		r.caption.SetText("")
+		r.caption.SetPlaceHolder("Caption")
+	}
+}
+
+func (r *runner) resize(sz fyne.Size) {
+	if true || *verbose {
+		fmt.Printf("resize from %g, %g to %g, %g\n", r.size.Width, r.size.Height, sz.Width, sz.Height)
+	}
+	r.size = sz
 	// The first image to be displayed shows the window.
 	if !r.visible {
-		r.win.Show()
 		r.visible = true
+		// Preload other images
+		defer r.cacheUpdate()
+	} else {
+		r.flushCache()
 	}
+	r.addCache(r.index)
+	r.show()
 }
 
 // quit exits the app
 func (r *runner) quit() {
+	vips.Shutdown()
 	r.app.Quit()
 }
 
@@ -195,6 +251,24 @@ func (r *runner) removeCache(index int) {
 func (r *runner) addCache(index int) {
 	if _, ok := r.loaded[index]; !ok {
 		r.loaded[index] = nothing{}
-		r.picts[index].startLoad()
+		r.picts[index].startLoad(r.iCanvas.Size())
+	}
+}
+
+func (r *runner) resizeWatcher() {
+	sl := time.Millisecond * 50
+	lastW := r.win.Canvas().Size()
+	lastC := r.iCanvas.Size()
+	for {
+		time.Sleep(sl)
+		if r.win.Canvas().Size() != lastW {
+			fmt.Printf("Win resize to %g, %g from %g, %g scale %g\n", r.win.Canvas().Size().Width, r.win.Canvas().Size().Height, lastW.Width, lastW.Height, r.win.Canvas().Scale())
+			lastW = r.win.Canvas().Size()
+		}
+		if r.iCanvas.Size() != lastC {
+			fmt.Printf("Canvas resize to %g, %g from %g, %g\n", r.iCanvas.Size().Width, r.iCanvas.Size().Height, lastC.Width, lastC.Height)
+			lastC = r.iCanvas.Size()
+			r.resize(lastC)
+		}
 	}
 }
