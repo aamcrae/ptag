@@ -26,7 +26,6 @@ type nothing struct{}
 
 type CaptionEntry struct {
 	runner  *runner
-	updated bool
 	widget.Entry
 }
 
