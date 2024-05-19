@@ -16,7 +16,6 @@ import (
 	"fmt"
 	"image"
 	"image/color"
-	"image/draw"
 	"os"
 	"time"
 
@@ -51,7 +50,7 @@ func (r *runner) start(f []string) {
 	r.build()
 	// Create a pict structure for every image
 	for i, file := range f {
-		p := NewPict(file, r.win, i)
+		p := NewPict(file, i)
 		p.setTitle(fmt.Sprintf("%s (%d/%d)", p.name, i+1, len(f)))
 		r.picts = append(r.picts, p)
 	}
@@ -70,13 +69,7 @@ func (r *runner) show() {
 		fmt.Fprintf(os.Stderr, "%s: load err: %v", p.name, err)
 		return
 	}
-	d := p.data
-	c := r.iDraw
-	draw.Draw(c, d.location, d.img, image.ZP, draw.Src)
-	black := image.NewUniform(color.Black)
-	for _, cl := range p.data.cleared {
-		draw.Draw(c, cl, black, image.ZP, draw.Src)
-	}
+	p.draw(r.iDraw)
 	r.iCanvas.Refresh()
 	if *verbose {
 		fmt.Printf("%s (%d): Showing size %g, %g\n", p.name, r.index, r.iCanvas.Size().Width, r.iCanvas.Size().Height)
@@ -272,25 +265,29 @@ func (r *runner) addCache(index int) {
 	}
 }
 
+// resizeWatcher tracks the actual size of the image canvas,
+// and will force the images to be resized and redisplayed once
+// the window has been resized.
 func (r *runner) resizeWatcher() {
 	sl := time.Millisecond * 50
 	changed := 0
 	lastC := r.iCanvas.Size()
-	orig := lastC
+	current := lastC
 	for {
 		time.Sleep(sl)
 		if r.iCanvas.Size() != lastC {
 			lastC = r.iCanvas.Size()
+			// 250 ms delay before actioning resize
 			changed = 5
 		}
 		if changed != 0 {
 			changed--
 			if changed == 0 {
 				if *verbose {
-					fmt.Printf("Canvas resize to %g, %g from %g, %g\n", r.iCanvas.Size().Width, r.iCanvas.Size().Height, orig.Width, orig.Height)
+					fmt.Printf("Canvas resize to %g, %g from %g, %g\n", r.iCanvas.Size().Width, r.iCanvas.Size().Height, current.Width, current.Height)
 				}
 				r.resize()
-				orig = lastC
+				current = lastC
 			}
 		}
 	}

@@ -36,6 +36,7 @@ func main() {
 	} else {
 		f = expand(flag.Args())
 	}
+	// Limit the max preload count to the number of CPUs
 	preload := runtime.NumCPU()
 	if preload > *maxPreload {
 		preload = *maxPreload

@@ -18,6 +18,9 @@ import (
 	"path/filepath"
 )
 
+// expand will take the list of possibly globbed names
+// and return the list of files in the same order.
+// Duplicates are removed.
 func expand(g []string) []string {
 	var f []string
 	// Map to check for existing file (skipped).

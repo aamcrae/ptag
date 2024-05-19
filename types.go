@@ -24,6 +24,8 @@ import (
 
 type nothing struct{}
 
+// Exiv holds a map of selected EXIF elements that
+// we are interested in (rating and caption)
 type Exiv map[int]string
 
 // Cached image data.

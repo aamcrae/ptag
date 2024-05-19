@@ -15,12 +15,9 @@ package main
 import (
 	"fmt"
 	"image"
-	_ "image/gif"
-	_ "image/jpeg"
-	_ "image/png"
+	"image/color"
+	"image/draw"
 	"path"
-
-	"fyne.io/fyne/v2"
 
 	"github.com/davidbyttow/govips/v2/vips"
 )
@@ -35,7 +32,7 @@ const (
 )
 
 // Create a new Pict, representing an image.
-func NewPict(file string, win fyne.Window, index int) *Pict {
+func NewPict(file string, index int) *Pict {
 	_, f := path.Split(file)
 	return &Pict{state: I_UNLOADED, path: file, name: f, index: index}
 }
@@ -164,18 +161,14 @@ func (p *Pict) load(w, h int) {
 	p.state = I_LOADED
 }
 
-// show writes the image to the window.
-func (p *Pict) show(win fyne.Canvas) {
-	if *verbose {
-		fmt.Printf("showing image %s (index %d)\n", p.name, p.index)
-	}
-	// Write the image.
-	//win.SetContent(p.img)
-	if *verbose {
-		fmt.Printf("show: %v\n", win.Content().Size())
-		for k, v := range p.exiv {
-			fmt.Printf("%s = %s\n", exivToSet[k], v)
-		}
+// draw writes the image to the canvas.
+func (p *Pict) draw(dst draw.Image) {
+	d := p.data
+	draw.Draw(dst, d.location, d.img, image.ZP, draw.Src)
+	// Clear the margins.
+	black := image.NewUniform(color.Black)
+	for _, cl := range p.data.cleared {
+		draw.Draw(dst, cl, black, image.ZP, draw.Src)
 	}
 }
 
