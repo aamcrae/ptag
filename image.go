@@ -156,9 +156,13 @@ func (p *Pict) load(w, h int) {
 			// We do allow an error when reading the EXIF.
 			// This usually means there is no EXIF headers in the file
 			p.exiv = make(Exiv)
-		}
-		if *verbose {
-			fmt.Printf("%s (%d): exiv loaded: %v\n", p.name, p.index, p.exiv)
+			if *verbose {
+				fmt.Printf("%s (%d): No exiv data!\n", p.name, p.index, p.exiv)
+			}
+		} else {
+			if *verbose {
+				fmt.Printf("%s (%d): exiv loaded: %v\n", p.name, p.index, p.exiv)
+			}
 		}
 	}
 	p.state = I_LOADED
