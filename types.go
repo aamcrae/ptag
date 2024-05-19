@@ -68,4 +68,5 @@ type runner struct {
 	preload int               // Number of images to preload
 	loaded  map[int]nothing   // Set of images that are cached
 	active  bool              // True if window now active
+	updated bool              // Set if the EXIF data may have changed
 }

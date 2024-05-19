@@ -18,7 +18,7 @@ import (
 
 func (c *CaptionEntry) MouseIn(*desktop.MouseEvent) {
 	c.runner.win.Canvas().Focus(c)
-	c.updated = true
+	c.runner.Updated()
 }
 
 func (c *CaptionEntry) MouseOut() {

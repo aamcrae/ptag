@@ -145,6 +145,27 @@ func (r *runner) build() {
 	}
 }
 
+// Updated flags that the EXIF data may have changed.
+func (r *runner) Updated() {
+	r.updated = true
+}
+
+func (r *runner) Sync() {
+	if r.updated {
+		r.updated = false
+		p := r.picts[r.index]
+		c, err := p.Caption()
+		if err == nil {
+			if c != r.caption.Text {
+				if *verbose {
+					fmt.Printf("%s (%d): update caption to <%s>", p.Name(), r.index, r.caption.Text)
+				}
+				p.SetCaption(r.caption.Text)
+			}
+		}
+	}
+}
+
 // Window has been resized, so rescale all the images and redisplay the current one.
 func (r *runner) resize() {
 	sz := r.iCanvas.Size()
