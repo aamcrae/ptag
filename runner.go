@@ -158,7 +158,7 @@ func (r *runner) Sync() {
 		if err == nil {
 			if c != r.caption.Text {
 				if *verbose {
-					fmt.Printf("%s (%d): update caption to <%s>", p.Name(), r.index, r.caption.Text)
+					fmt.Printf("%s (%d): update caption to <%s>\n", p.Name(), r.index, r.caption.Text)
 				}
 				p.SetCaption(r.caption.Text)
 			}
@@ -196,6 +196,7 @@ func (r *runner) fullScreen() {
 
 // quit exits the app
 func (r *runner) quit() {
+	r.Sync()
 	vips.Shutdown()
 	r.app.Quit()
 }
@@ -210,6 +211,7 @@ func (r *runner) rate(rating int) {
 
 // setIndex selects the image to display.
 func (r *runner) setIndex(newIndex int) {
+	r.Sync()
 	if newIndex < 0 {
 		newIndex = 0
 	}

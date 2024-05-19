@@ -25,7 +25,7 @@ import (
 type nothing struct{}
 
 type CaptionEntry struct {
-	runner  *runner
+	runner *runner
 	widget.Entry
 }
 

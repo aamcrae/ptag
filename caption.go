@@ -23,6 +23,7 @@ func (c *CaptionEntry) MouseIn(*desktop.MouseEvent) {
 
 func (c *CaptionEntry) MouseOut() {
 	c.runner.win.Canvas().Unfocus()
+	c.runner.Sync()
 }
 
 func (c *CaptionEntry) MouseMoved(*desktop.MouseEvent) {
