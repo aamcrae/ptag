@@ -22,8 +22,8 @@ import (
 	"github.com/davidbyttow/govips/v2/vips"
 )
 
-// Image state. This should only be changed during the locked
-// loading stage.
+// Image state. This should only be changed during the
+// loading stage when it is locked.
 const (
 	I_UNLOADED = iota
 	I_LOADING
@@ -31,7 +31,7 @@ const (
 	I_ERROR
 )
 
-// Create a new Pict, representing an image.
+// Create a new Pict, representing an image from the file.
 func NewPict(file string, index int) *Pict {
 	_, f := path.Split(file)
 	return &Pict{state: I_UNLOADED, path: file, name: f, index: index}
@@ -47,16 +47,18 @@ func (p *Pict) wait() error {
 	return nil
 }
 
-// startLoad sets up to load the image.
+// startLoad sets up to load and process the image.
 // The actual reading is delegated to a background goroutine.
-func (p *Pict) startLoad(w, h int) {
+// After calling startLoad, the wait function must be called before
+// the image data is accessed.
+func (p *Pict) StartLoad(w, h int) {
 	p.wait() // Ensure not already loading
 	// If loaded already, and scaled to match the current window size, don't reload
 	if p.state == I_LOADED {
 		return
 	}
 	// The image is not loaded.
-	p.unload()
+	p.Unload()
 	if *verbose {
 		fmt.Printf("%s (index %d): loading...\n", p.name, p.index)
 	}
@@ -162,7 +164,10 @@ func (p *Pict) load(w, h int) {
 }
 
 // draw writes the image to the canvas.
-func (p *Pict) draw(dst draw.Image) {
+func (p *Pict) Draw(dst draw.Image) error {
+	if err := p.wait(); err != nil {
+		return err
+	}
 	d := p.data
 	draw.Draw(dst, d.location, d.img, image.ZP, draw.Src)
 	// Clear the margins.
@@ -170,15 +175,29 @@ func (p *Pict) draw(dst draw.Image) {
 	for _, cl := range p.data.cleared {
 		draw.Draw(dst, cl, black, image.ZP, draw.Src)
 	}
+	return nil
+}
+
+// Title returns the current title
+func (p *Pict) Title() string {
+	return p.title
+}
+
+// Name returns the current base filename
+func (p *Pict) Name() string {
+	return p.name
 }
 
 // setTitle sets the window title for this image.
-func (p *Pict) setTitle(title string) {
+func (p *Pict) SetTitle(title string) {
 	p.title = title
 }
 
 // setRating sets a rating (0-5) on this image.
-func (p *Pict) setRating(rating int) error {
+func (p *Pict) SetRating(rating int) error {
+	if err := p.wait(); err != nil {
+		return err
+	}
 	if *verbose {
 		fmt.Printf("Set rating of %s to %d\n", p.name, rating)
 	}
@@ -192,7 +211,7 @@ func (p *Pict) setRating(rating int) error {
 }
 
 // unload clears out the image data and sets the picture to unloaded.
-func (p *Pict) unload() {
+func (p *Pict) Unload() {
 	if p.state != I_UNLOADED {
 		if *verbose {
 			fmt.Printf("Unloading %s, index %d\n", p.name, p.index)

@@ -51,7 +51,7 @@ func (r *runner) start(f []string) {
 	// Create a pict structure for every image
 	for i, file := range f {
 		p := NewPict(file, i)
-		p.setTitle(fmt.Sprintf("%s (%d/%d)", p.name, i+1, len(f)))
+		p.SetTitle(fmt.Sprintf("%s (%d/%d)", p.Name(), i+1, len(f)))
 		r.picts = append(r.picts, p)
 	}
 	r.win.Show()
@@ -63,16 +63,14 @@ func (r *runner) start(f []string) {
 // Show the current image from the cache.
 func (r *runner) show() {
 	p := r.picts[r.index]
-	defer r.win.SetTitle(p.title)
-	err := p.wait()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s: load err: %v", p.name, err)
+	defer r.win.SetTitle(p.Title())
+	if err := p.Draw(r.iDraw); err != nil {
+		fmt.Fprintf(os.Stderr, "%s: draw: %v", p.Name(), err)
 		return
 	}
-	p.draw(r.iDraw)
 	r.iCanvas.Refresh()
 	if *verbose {
-		fmt.Printf("%s (%d): Showing size %g, %g\n", p.name, r.index, r.iCanvas.Size().Width, r.iCanvas.Size().Height)
+		fmt.Printf("%s (%d): Showing size %g, %g\n", p.Name(), r.index, r.iCanvas.Size().Width, r.iCanvas.Size().Height)
 	}
 	if capt, ok := p.exiv[EXIV_CAPTION]; ok {
 		if *verbose {
@@ -174,13 +172,7 @@ func (r *runner) quit() {
 // rate sets the rating on the current picture
 func (r *runner) rate(rating int) {
 	p := r.picts[r.index]
-	err := p.wait()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s: load err: %v", p.name, err)
-		return
-	}
-	err = p.setRating(rating)
-	if err != nil {
+	if err := p.SetRating(rating); err != nil {
 		fmt.Fprintf(os.Stderr, "%s: Failed to set rating: %v", r.picts[r.index].name, err)
 	}
 }
@@ -253,7 +245,7 @@ func (r *runner) flushCache() {
 func (r *runner) removeCache(index int) {
 	if _, ok := r.loaded[index]; ok {
 		delete(r.loaded, index)
-		r.picts[index].unload()
+		r.picts[index].Unload()
 	}
 }
 
@@ -261,7 +253,7 @@ func (r *runner) removeCache(index int) {
 func (r *runner) addCache(index int) {
 	if _, ok := r.loaded[index]; !ok {
 		r.loaded[index] = nothing{}
-		r.picts[index].startLoad(r.iDraw.Bounds().Max.X, r.iDraw.Bounds().Max.Y)
+		r.picts[index].StartLoad(r.iDraw.Bounds().Max.X, r.iDraw.Bounds().Max.Y)
 	}
 }
 
