@@ -23,7 +23,7 @@ import (
 )
 
 // Image state. This should only be changed during the
-// loading stage when it is locked.
+// loading stage when the lock is active.
 const (
 	I_UNLOADED = iota
 	I_LOADING
@@ -52,8 +52,8 @@ func (p *Pict) wait() error {
 // After calling startLoad, the wait function must be called before
 // the image data is accessed.
 func (p *Pict) StartLoad(w, h int) {
-	p.wait() // Ensure not already loading
-	// If loaded already, and scaled to match the current window size, don't reload
+	p.wait() // Ensure loading is not already in progress
+	// If loaded already, don't reload
 	if p.state == I_LOADED {
 		return
 	}
@@ -120,7 +120,7 @@ func (p *Pict) load(w, h int) {
 		p.err = err
 		return
 	}
-	// If there are any surrounding margins, create a clear list.
+	// If there are any surrounding margins, create a list of areas to be cleared.
 	if x < 0 {
 		x = 0
 	}
@@ -146,6 +146,7 @@ func (p *Pict) load(w, h int) {
 			fmt.Printf("Clearing %d, %d to %d, %d\n", cl.Min.X, cl.Min.Y, cl.Max.X, cl.Max.Y)
 		}
 	}
+	// Save the cached image data.
 	p.data = d
 	// Image processing is done. Now read the EXIF data if it
 	// doesn't already exist
@@ -163,7 +164,8 @@ func (p *Pict) load(w, h int) {
 	p.state = I_LOADED
 }
 
-// draw writes the image to the canvas.
+// draw writes the image to the backing image of the canvas,
+// and clears any surrounding area.
 func (p *Pict) Draw(dst draw.Image) error {
 	if err := p.wait(); err != nil {
 		return err
