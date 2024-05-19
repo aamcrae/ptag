@@ -90,11 +90,17 @@ func (r *runner) show() {
 	if *verbose && rating >= 0 {
 		fmt.Printf("Initialising rating to %d\n", rating)
 	}
+	if rating < 0 {
+		r.rating.Text = fmt.Sprintf("Rating: not set %d", rating)
+	} else {
+		r.rating.Text = fmt.Sprintf("Rating: %d", rating)
+	}
+	r.rating.Refresh()
 }
 
 func (r *runner) build() {
-	r.rating = canvas.NewRectangle(color.Black)
-	r.rating.SetMinSize(fyne.NewSize(100, 0))
+	r.rating = canvas.NewText("Rating:", color.Black)
+	r.rating.SetMinSize(fyne.NewSize(150, 0))
 	r.caption = &CaptionEntry{runner: r}
 	r.caption.ExtendBaseWidget(r.caption)
 	r.caption.SetPlaceHolder("Caption")
@@ -206,6 +212,9 @@ func (r *runner) rate(rating int) {
 	p := r.picts[r.index]
 	if err := p.SetRating(rating); err != nil {
 		fmt.Fprintf(os.Stderr, "%s: Failed to set rating: %v", r.picts[r.index].name, err)
+	} else {
+		r.rating.Text = fmt.Sprintf("Rating: %d", rating)
+		r.rating.Refresh()
 	}
 }
 

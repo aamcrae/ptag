@@ -57,7 +57,7 @@ type Pict struct {
 type runner struct {
 	app     fyne.App          // Main application
 	win     fyne.Window       // Main window
-	rating  *canvas.Rectangle // widget holding rating stars
+	rating  *canvas.Text      // widget holding rating stars
 	caption *CaptionEntry     // Caption entry widget
 	top     *fyne.Container   // top box containing stars and caption elements
 	iDraw   draw.Image        // Image backing the canvas being displayed
