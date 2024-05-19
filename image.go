@@ -52,7 +52,7 @@ func (p *Pict) wait() error {
 
 // startLoad sets up to load the image.
 // The actual reading is delegated to a background goroutine.
-func (p *Pict) startLoad(sz fyne.Size) {
+func (p *Pict) startLoad(w, h int) {
 	p.wait() // Ensure not already loading
 	// If loaded already, and scaled to match the current window size, don't reload
 	if p.state == I_LOADED {
@@ -65,13 +65,13 @@ func (p *Pict) startLoad(sz fyne.Size) {
 	}
 	p.lock.Add(1)
 	p.state = I_LOADING
-	go p.load(sz)
+	go p.load(w, h)
 }
 
-// load reads and processes the image ready for display.
+// load reads and if necessary resizes the image ready for display.
 // wait() must be called before the image can be accessed to
 // ensure that the load is complete.
-func (p *Pict) load(sz fyne.Size) {
+func (p *Pict) load(w, h int) {
 	defer p.lock.Done()
 	p.clean()
 	// Read the image from the file.
@@ -81,44 +81,39 @@ func (p *Pict) load(sz fyne.Size) {
 		p.err = err
 		return
 	}
+	iW := vimg.Width()
+	iH := vimg.Height()
 	// Scale the image to fit the requested size
-	xRatio := sz.Width / float32(vimg.Width())
-	yRatio := sz.Height / float32(vimg.Height())
+	xRatio := float32(w) / float32(iW)
+	yRatio := float32(h) / float32(iH)
 	d := new(Data)
 	// If the image is larger than the window, scale it down
 	var x, y int
-	if xRatio < 1 || yRatio < 1 {
+	if (*fit && (xRatio != 1 || yRatio != 1)) || (!*fit && (xRatio < 1 || yRatio < 1)) {
 		// Maintain the same aspect, so use the same scaling factor for
 		// both width and height. This may mean that there is blank space
 		// on either the right/left or top/bottom.
 		var err error
 		if xRatio < yRatio {
 			err = vimg.Resize(float64(xRatio), vips.KernelAuto)
-			// Possible blank space at top and bottom
-			h := int(sz.Height)
+			// Possible blank space at top and bottom,
+			// calculate space in pixels
 			y = (h - vimg.Height()) / 2
-			if y > 0 {
-				d.cleared = []image.Rectangle{image.Rect(0, 0, vimg.Width(), y), image.Rect(0, y+vimg.Height(), vimg.Width(), h)}
-			} else {
-				y = 0
-			}
 
 		} else {
 			err = vimg.Resize(float64(yRatio), vips.KernelAuto)
 			// Possible blank space at right and left
-			w := int(sz.Width)
 			x = (w - vimg.Width()) / 2
-			if x > 0 {
-				d.cleared = []image.Rectangle{image.Rect(0, 0, x, vimg.Height()), image.Rect(x+vimg.Width(), 0, w, vimg.Height())}
-			} else {
-				x = 0
-			}
 		}
 		if err != nil {
 			p.state = I_ERROR
 			p.err = err
 			return
 		}
+	} else {
+		// The image is smaller than the canvas, so center it.
+		x = (w - vimg.Width()) / 2
+		y = (h - vimg.Height()) / 2
 	}
 	d.img, err = vimg.ToImage(vips.NewDefaultExportParams())
 	if err != nil {
@@ -126,9 +121,28 @@ func (p *Pict) load(sz fyne.Size) {
 		p.err = err
 		return
 	}
+	// If there are any surrounding margins, create a clear list.
+	if x < 0 {
+		x = 0
+	}
+	if y < 0 {
+		y = 0
+	}
 	d.location = image.Rect(x, y, x+d.img.Bounds().Max.X, y+d.img.Bounds().Max.Y)
+	if y != 0 {
+		d.cleared = append(d.cleared, image.Rect(0, 0, w, y))
+	}
+	if d.location.Max.Y != h {
+		d.cleared = append(d.cleared, image.Rect(0, d.location.Max.Y, w, h))
+	}
+	if x != 0 {
+		d.cleared = append(d.cleared, image.Rect(0, y, x, d.location.Max.Y))
+	}
+	if d.location.Max.X != w {
+		d.cleared = append(d.cleared, image.Rect(d.location.Max.X, y, w, d.location.Max.Y))
+	}
 	if *verbose {
-		fmt.Printf("%s (%d): Loaded, resized to %d, %d, pos %d, %d\n", p.name, p.index, d.img.Bounds().Max.X, d.img.Bounds().Max.Y, d.location.Min.X, d.location.Min.Y)
+		fmt.Printf("%s (%d): Canvas %d x %d, Loaded size %d x %d, resized to %d, %d, pos %d, %d\n", p.name, p.index, w, h, iW, iH, d.img.Bounds().Max.X, d.img.Bounds().Max.Y, d.location.Min.X, d.location.Min.Y)
 		for _, cl := range d.cleared {
 			fmt.Printf("Clearing %d, %d to %d, %d\n", cl.Min.X, cl.Min.Y, cl.Max.X, cl.Max.Y)
 		}

@@ -26,37 +26,38 @@ type nothing struct{}
 
 type Exiv map[int]string
 
+// Cached image data.
 type Data struct {
-	location image.Rectangle
-	cleared  []image.Rectangle
-	img      image.Image
+	location image.Rectangle   // Location and size of displayed image
+	cleared  []image.Rectangle // Margins to be cleared
+	img      image.Image       // Image to be displayed
 }
 
+// Pict represents one image.
 type Pict struct {
-	state int    // Current state
-	path  string // Filename of picture
-	name  string // short name
-	title string // window title
-	index int
+	state int            // Current state
+	path  string         // Filename of picture
+	name  string         // short name
+	title string         // window title
+	index int            // Index within list of images
 	err   error          // Error during loading
 	lock  sync.WaitGroup // lock for loading
 	exiv  Exiv           // Current EXIF data
-	data  *Data          // Image data, vil if unloaded
+	data  *Data          // Cached mage data, nil if unloaded
 }
 
+// Main execution runner. Holds the state of the application.
 type runner struct {
-	app     fyne.App
-	win     fyne.Window
-	rating  *canvas.Rectangle
-	caption *widget.Entry
-	top     *fyne.Container
-	iDraw   draw.Image
-	iCanvas *canvas.Raster
-	cleared []image.Rectangle
-	picts   []*Pict // Pictures
-	size    fyne.Size
-	index   int // Current picture
-	preload int
-	loaded  map[int]nothing
-	visible bool
+	app     fyne.App          // Main application
+	win     fyne.Window       // Main window
+	rating  *canvas.Rectangle // widget holding rating stars
+	caption *widget.Entry     // Caption entry widget
+	top     *fyne.Container   // top box containing stars and caption elements
+	iDraw   draw.Image        // Image backing the canvas being displayed
+	iCanvas fyne.CanvasObject // Canvas holding the displayed image
+	picts   []*Pict           // List of images
+	index   int               // Current picture index
+	preload int               // Number of images to preload
+	loaded  map[int]nothing   // Set of images that are cached
+	active  bool              // True if window now active
 }

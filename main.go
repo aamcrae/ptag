@@ -20,6 +20,8 @@ import (
 )
 
 var verbose = flag.Bool("verbose", false, "Verbose tracing")
+var fullscreen = flag.Bool("fullscreen", false, "Fullscreen display")
+var fit = flag.Bool("fit", false, "Scale images to fit window")
 var maxPreload = flag.Int("preload", 10, "Maximum images to concurrently load")
 var width = flag.Int("width", 1500, "Window width")
 var height = flag.Int("height", 1200, "Window height")
