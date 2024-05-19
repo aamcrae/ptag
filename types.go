@@ -24,6 +24,12 @@ import (
 
 type nothing struct{}
 
+type CaptionEntry struct {
+	runner  *runner
+	updated bool
+	widget.Entry
+}
+
 // Exiv holds a map of selected EXIF elements that
 // we are interested in (rating and caption)
 type Exiv map[int]string
@@ -53,7 +59,7 @@ type runner struct {
 	app     fyne.App          // Main application
 	win     fyne.Window       // Main window
 	rating  *canvas.Rectangle // widget holding rating stars
-	caption *widget.Entry     // Caption entry widget
+	caption *CaptionEntry     // Caption entry widget
 	top     *fyne.Container   // top box containing stars and caption elements
 	iDraw   draw.Image        // Image backing the canvas being displayed
 	iCanvas fyne.CanvasObject // Canvas holding the displayed image

@@ -24,7 +24,6 @@ import (
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/driver/desktop"
-	"fyne.io/fyne/v2/widget"
 
 	"github.com/davidbyttow/govips/v2/vips"
 )
@@ -72,22 +71,33 @@ func (r *runner) show() {
 	if *verbose {
 		fmt.Printf("%s (%d): Showing size %g, %g\n", p.Name(), r.index, r.iCanvas.Size().Width, r.iCanvas.Size().Height)
 	}
-	if capt, ok := p.exiv[EXIV_CAPTION]; ok {
+	// If Draw worked, no error will be returned from Caption()
+	capt, _ := p.Caption()
+	if len(capt) != 0 {
 		if *verbose {
-			fmt.Printf("Setting caption text to <%s>\n", capt)
+			fmt.Printf("Initialising caption text to <%s>\n", capt)
 		}
 		r.caption.SetText(capt)
 	} else {
 		r.caption.SetText("")
 		r.caption.SetPlaceHolder("Caption")
 	}
+	rating, err := p.Rating()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s: rating: %v", p.Name(), err)
+	}
+	// Display rating.
+	if *verbose && rating >= 0 {
+		fmt.Printf("Initialising rating to %d\n", rating)
+	}
 }
 
 func (r *runner) build() {
 	r.rating = canvas.NewRectangle(color.Black)
 	r.rating.SetMinSize(fyne.NewSize(100, 0))
-	r.caption = widget.NewEntry()
-	r.caption.SetPlaceHolder("Caption is here")
+	r.caption = &CaptionEntry{runner: r}
+	r.caption.ExtendBaseWidget(r.caption)
+	r.caption.SetPlaceHolder("Caption")
 	// Initially set up a dummy canvas in order for the
 	// window to be shown and the sizes determined.
 	// The resize watcher will detect when the window is

@@ -66,11 +66,17 @@ func getExiv(f string) (Exiv, error) {
 			case EXIV_CAPTION:
 				// Create a single string from the separate caption words
 				ev[val] = strings.Join(fields[3:], " ")
-			default:
+			case EXIV_RATING:
 				if len(fields) != 4 {
 					fmt.Fprintf(os.Stderr, "%s: exiv tag has too many fields: %s\n", f, l)
 				} else {
-					ev[val] = fields[3]
+					// Validate rating (should "0" - "5")
+					switch fields[3] {
+					default:
+						fmt.Fprintf(os.Stderr, "%s: illegal value for rating (%s)", f, fields[3])
+					case "0", "1", "2", "3", "4", "5":
+						ev[val] = fields[3]
+					}
 				}
 			}
 		} else {

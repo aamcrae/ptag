@@ -195,7 +195,28 @@ func (p *Pict) SetTitle(title string) {
 	p.title = title
 }
 
-// setRating sets a rating (0-5) on this image.
+// Rating returns the current rating, -1 if none
+func (p *Pict) Rating() (int, error) {
+	if err := p.wait(); err != nil {
+		return 0, err
+	}
+	if r, ok := p.exiv[EXIV_RATING]; ok {
+		var rating int
+		n, err := fmt.Sscanf(r, "%d", &rating)
+		if err != nil {
+			return -1, err
+		}
+		if n != 1 || rating < 0 || rating > 5 {
+			return -1, fmt.Errorf("%s: illegal rating")
+		}
+		return rating, nil
+	} else {
+		return -1, nil
+	}
+}
+
+// SetRating sets a rating (0-5) on this image.
+// -1 will delete the rating
 func (p *Pict) SetRating(rating int) error {
 	if err := p.wait(); err != nil {
 		return err
@@ -203,11 +224,57 @@ func (p *Pict) SetRating(rating int) error {
 	if *verbose {
 		fmt.Printf("Set rating of %s to %d\n", p.name, rating)
 	}
+	if rating < 0 {
+		if err := deleteExiv(p.path, Exiv{EXIV_RATING: ""}); err != nil {
+			return err
+		}
+		delete(p.exiv, EXIV_RATING)
+		return nil
+	}
+	if rating > 5 {
+		return fmt.Errorf("%d: illegal rating", rating)
+	}
 	sr := fmt.Sprintf("%d", rating)
 	err := setExiv(p.path, Exiv{EXIV_RATING: sr})
 	if err == nil {
 		// Update the current values
 		p.exiv[EXIV_RATING] = sr
+	}
+	return nil
+}
+
+// Caption returns the current caption (if any)
+func (p *Pict) Caption() (string, error) {
+	if err := p.wait(); err != nil {
+		return "", err
+	}
+	if r, ok := p.exiv[EXIV_CAPTION]; ok {
+		return r, nil
+	} else {
+		return "", nil
+	}
+}
+
+// SetCaption sets a caption on the EXIF.
+// An empty caption will delete the caption
+func (p *Pict) SetCaption(caption string) error {
+	if err := p.wait(); err != nil {
+		return err
+	}
+	if *verbose {
+		fmt.Printf("Set caption of %s to %s\n", p.name, caption)
+	}
+	if len(caption) == 0 {
+		if err := deleteExiv(p.path, Exiv{EXIV_CAPTION: ""}); err != nil {
+			return err
+		}
+		delete(p.exiv, EXIV_CAPTION)
+		return nil
+	}
+	err := setExiv(p.path, Exiv{EXIV_CAPTION: caption})
+	if err == nil {
+		// Update the current values
+		p.exiv[EXIV_CAPTION] = caption
 	}
 	return nil
 }
