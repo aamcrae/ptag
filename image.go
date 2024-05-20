@@ -73,12 +73,67 @@ func (p *Pict) StartLoad(w, h int) {
 func (p *Pict) load(w, h int) {
 	defer p.lock.Done()
 	p.clean()
+	// Read the EXIF data if it doesn't already exist
+	// This is read first so that the orientation can be used
+	// to flip the image if necessary.
+	if p.exiv == nil {
+		var err error
+		p.exiv, err = getExiv(p.path)
+		if err != nil {
+			// We do allow an error when reading the EXIF.
+			// This usually means there is no EXIF headers in the file
+			p.exiv = make(Exiv)
+			if *verbose {
+				fmt.Printf("%s (%d): No exiv data!\n", p.name, p.index, p.exiv)
+			}
+		} else {
+			if *verbose {
+				fmt.Printf("%s (%d): exiv loaded: %v\n", p.name, p.index, p.exiv)
+			}
+		}
+	}
+
 	// Read the image from the file.
 	vimg, err := vips.NewImageFromFile(p.path)
 	if err != nil {
 		p.state = I_ERROR
 		p.err = err
 		return
+	}
+	// Apply EXIF orientation (if any)
+	adjustMap := map[string]struct {
+		rotate vips.Angle
+		flip   bool
+	}{
+		"1": {vips.Angle0, false},
+		"2": {vips.Angle0, true},
+		"3": {vips.Angle180, false},
+		"4": {vips.Angle180, true},
+		"5": {vips.Angle90, true},
+		"6": {vips.Angle90, false},
+		"7": {vips.Angle270, true},
+		"8": {vips.Angle270, false},
+	}
+	// Get EXIF orientation, if any
+	orient, ok := p.exiv[EXIV_ORIENTATION]
+	if !ok {
+		orient = "1" // No adjustment required
+	}
+	adjust, ok := adjustMap[orient]
+	if ok {
+		// Rotate before flip
+		if adjust.rotate != vips.Angle0 {
+			vimg.Rotate(adjust.rotate)
+			if *verbose {
+				fmt.Printf("%s (%d): rotating %v\n", p.name, p.index, adjust.rotate)
+			}
+		}
+		if adjust.flip {
+			vimg.Flip(vips.DirectionHorizontal)
+			if *verbose {
+				fmt.Printf("%s (%d): flipping\n", p.name, p.index)
+			}
+		}
 	}
 	iW := vimg.Width()
 	iH := vimg.Height()
@@ -148,23 +203,6 @@ func (p *Pict) load(w, h int) {
 	}
 	// Save the cached image data.
 	p.data = d
-	// Image processing is done. Now read the EXIF data if it
-	// doesn't already exist
-	if p.exiv == nil {
-		p.exiv, err = getExiv(p.path)
-		if err != nil {
-			// We do allow an error when reading the EXIF.
-			// This usually means there is no EXIF headers in the file
-			p.exiv = make(Exiv)
-			if *verbose {
-				fmt.Printf("%s (%d): No exiv data!\n", p.name, p.index, p.exiv)
-			}
-		} else {
-			if *verbose {
-				fmt.Printf("%s (%d): exiv loaded: %v\n", p.name, p.index, p.exiv)
-			}
-		}
-	}
 	p.state = I_LOADED
 }
 
@@ -243,6 +281,42 @@ func (p *Pict) SetRating(rating int) error {
 	if err == nil {
 		// Update the current values
 		p.exiv[EXIV_RATING] = sr
+	}
+	return nil
+}
+
+// Orientation returns the current orientation, "" if none
+func (p *Pict) Orientation() (string, error) {
+	if err := p.wait(); err != nil {
+		return "", err
+	}
+	if r, ok := p.exiv[EXIV_ORIENTATION]; ok {
+		return r, nil
+	} else {
+		return "", nil
+	}
+}
+
+// SetOrientation sets an orientation ("1" - "8") on this image.
+// "" will delete the rating
+func (p *Pict) SetOrientation(orientation string) error {
+	if err := p.wait(); err != nil {
+		return err
+	}
+	if *verbose {
+		fmt.Printf("Set orientation of %s to %s\n", p.name, orientation)
+	}
+	if orientation == "" {
+		if err := deleteExiv(p.path, Exiv{EXIV_ORIENTATION: ""}); err != nil {
+			return err
+		}
+		delete(p.exiv, EXIV_ORIENTATION)
+		return nil
+	}
+	err := setExiv(p.path, Exiv{EXIV_ORIENTATION: orientation})
+	if err == nil {
+		// Update the current values
+		p.exiv[EXIV_ORIENTATION] = orientation
 	}
 	return nil
 }

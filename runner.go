@@ -91,7 +91,7 @@ func (r *runner) show() {
 		fmt.Printf("Initialising rating to %d\n", rating)
 	}
 	if rating < 0 {
-		r.rating.Text = fmt.Sprintf("Rating: not set %d", rating)
+		r.rating.Text = fmt.Sprintf("Rating: not set")
 	} else {
 		r.rating.Text = fmt.Sprintf("Rating: %d", rating)
 	}
@@ -130,6 +130,10 @@ func (r *runner) build() {
 				r.setIndex(0)
 			case fyne.KeyEnd:
 				r.setIndex(len(r.picts) - 1)
+			case "M":
+				r.mirror()
+			case "R":
+				r.rotate()
 			case "F":
 				r.fullScreen()
 			case "Q":
@@ -207,15 +211,66 @@ func (r *runner) quit() {
 	r.app.Quit()
 }
 
+// rotate the image
+func (r *runner) rotate() {
+	r.adjustOrientation(map[string]string{
+		"":  "6", // No existing orientation
+		"1": "6",
+		"2": "5",
+		"3": "8",
+		"4": "7",
+		"5": "4",
+		"6": "3",
+		"7": "2",
+		"8": "1"})
+}
+
+// mirror the image
+func (r *runner) mirror() {
+	r.adjustOrientation(map[string]string{
+		"":  "2", // No existing orientation
+		"1": "2",
+		"2": "1",
+		"3": "4",
+		"4": "3",
+		"5": "6",
+		"6": "5",
+		"7": "8",
+		"8": "7"})
+}
+
+func (r *runner) adjustOrientation(adj map[string]string) {
+	p := r.picts[r.index]
+	if current, err := p.Orientation(); err != nil {
+		fmt.Fprintf(os.Stderr, "%s: current orientation: %v", p.Name(), err)
+	} else {
+		newO, ok := adj[current]
+		if !ok {
+			fmt.Fprintf(os.Stderr, "%s: unknown orientation: %s", p.Name(), current)
+		} else {
+			p.SetOrientation(newO)
+			r.redisplay()
+			if *verbose {
+				fmt.Printf("%s: old orientation %s, new orientation: %s\n", p.Name(), current, newO)
+			}
+		}
+	}
+}
+
 // rate sets the rating on the current picture
 func (r *runner) rate(rating int) {
 	p := r.picts[r.index]
 	if err := p.SetRating(rating); err != nil {
-		fmt.Fprintf(os.Stderr, "%s: Failed to set rating: %v", r.picts[r.index].name, err)
+		fmt.Fprintf(os.Stderr, "%s: Failed to set rating: %v", p.Name(), err)
 	} else {
 		r.rating.Text = fmt.Sprintf("Rating: %d", rating)
 		r.rating.Refresh()
 	}
+}
+
+func (r *runner) redisplay() {
+	r.removeCache(r.index)
+	r.setIndex(r.index)
 }
 
 // setIndex selects the image to display.

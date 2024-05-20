@@ -23,12 +23,14 @@ import (
 const (
 	EXIV_RATING = iota
 	EXIV_CAPTION
+	EXIV_ORIENTATION
 )
 
 // maps the exiv enum to the EXIF tag
 var exivToSet = map[int]string{
-	EXIV_RATING:  "Xmp.xmp.Rating",
-	EXIV_CAPTION: "Iptc.Application2.Caption",
+	EXIV_RATING:      "Xmp.xmp.Rating",
+	EXIV_CAPTION:     "Iptc.Application2.Caption",
+	EXIV_ORIENTATION: "Exif.Image.Orientation",
 }
 
 // maps the EXIF tag to the internal enum
@@ -37,16 +39,21 @@ var exivFromName = map[string]int{
 	"Iptc.Application2.Caption":    EXIV_CAPTION,
 	"Iptc.Application2.Headline":   EXIV_CAPTION,
 	"Iptc.Application2.ObjectName": EXIV_CAPTION,
+	"Exif.Image.Orientation":       EXIV_ORIENTATION,
 }
 
 // getExiv will retrieve the required EXIF fields from the file
 func getExiv(f string) (Exiv, error) {
-	cmd := exec.Command("exiv2", "-q", "-K", "Xmp.xmp.Rating",
+	cmd := exec.Command("exiv2", "-q", "-P", "EkIXv", "-K", "Xmp.xmp.Rating",
 		"-K", "Iptc.Application2.Caption",
+		"-K", "Exif.Image.Orientation",
 		"-K", "Iptc.Application2.Headline",
 		"-K", "Iptc.Application2.ObjectName",
 		f)
 	outp, err := cmd.Output()
+	if *verbose {
+		fmt.Printf("Running: %s\noutput: %s\n", strings.Join(cmd.Args, " "), outp)
+	}
 	if err != nil {
 		// Very likely there is no exif headers in this file.
 		return nil, err
@@ -57,26 +64,32 @@ func getExiv(f string) (Exiv, error) {
 			continue
 		}
 		fields := strings.Fields(l)
-		if len(fields) < 4 {
+		if len(fields) < 2 {
 			continue
 		}
-		val, ok := exivFromName[fields[0]]
+		exiv, ok := exivFromName[fields[0]]
 		if ok {
-			switch val {
+			// Concatenate values
+			value := strings.Join(fields[1:], " ")
+			switch exiv {
 			case EXIV_CAPTION:
 				// Create a single string from the separate caption words
-				ev[val] = strings.Join(fields[3:], " ")
+				ev[EXIV_CAPTION] = value
 			case EXIV_RATING:
-				if len(fields) != 4 {
-					fmt.Fprintf(os.Stderr, "%s: exiv tag has too many fields: %s\n", f, l)
-				} else {
-					// Validate rating (should "0" - "5")
-					switch fields[3] {
-					default:
-						fmt.Fprintf(os.Stderr, "%s: illegal value for rating (%s)", f, fields[3])
-					case "0", "1", "2", "3", "4", "5":
-						ev[val] = fields[3]
-					}
+				// Validate rating (should "0" - "5")
+				switch value {
+				default:
+					fmt.Fprintf(os.Stderr, "%s: illegal value for rating (%s)", f, value)
+				case "0", "1", "2", "3", "4", "5":
+					ev[exiv] = value
+				}
+			case EXIV_ORIENTATION:
+				// Validate orientation (should "1" - "8")
+				switch value {
+				default:
+					fmt.Fprintf(os.Stderr, "%s: illegal value for orientation (%s)", f, value)
+				case "1", "2", "3", "4", "5", "6", "7", "8":
+					ev[exiv] = value
 				}
 			}
 		} else {
