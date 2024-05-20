@@ -51,12 +51,12 @@ func main() {
 		fmt.Printf("%d files in total, preload = %d\n", len(f), preload)
 	}
 	initExif()
-	r, err := newRunner(*width, *height, preload)
+	a, err := newPtag(*width, *height, preload)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "init: %v", err)
 		return
 	}
-	r.start(f)
+	a.start(f)
 }
 
 func usage() {

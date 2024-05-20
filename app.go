@@ -28,7 +28,7 @@ import (
 	"github.com/davidbyttow/govips/v2/vips"
 )
 
-func newRunner(width, height, preload int) (*runner, error) {
+func newPtag(width, height, preload int) (*Ptag, error) {
 	a := app.New()
 	// Create a window to display the images.
 	win := a.NewWindow("ptag")
@@ -38,39 +38,39 @@ func newRunner(width, height, preload int) (*runner, error) {
 	} else {
 		win.Resize(fyne.NewSize(float32(width), float32(height)))
 	}
-	return &runner{app: a, win: win, preload: preload, loaded: map[int]nothing{}}, nil
+	return &Ptag{app: a, win: win, preload: preload, loaded: map[int]nothing{}}, nil
 }
 
-func (r *runner) start(f []string) {
+func (a *Ptag) start(f []string) {
 	// Make vips less noisy.
 	vips.LoggingSettings(nil, vips.LogLevelError)
 	vips.Startup(nil)
 	// Create some containers for the layout.
-	r.build()
+	a.build()
 	// Create a Pict object for every image
 	for i, file := range f {
 		p := NewPict(file, i)
 		p.SetTitle(fmt.Sprintf("%s (%d/%d)", p.Name(), i+1, len(f)))
-		r.picts = append(r.picts, p)
+		a.picts = append(a.picts, p)
 	}
 	// Show the main window.
-	r.win.Show()
-	go r.resizeWatcher()
+	a.win.Show()
+	go a.resizeWatcher()
 	// Main runloop.
-	r.app.Run()
+	a.app.Run()
 }
 
 // Show the current image.
-func (r *runner) show() {
-	p := r.picts[r.index]
-	defer r.win.SetTitle(p.Title())
-	if err := p.Draw(r.iDraw); err != nil {
+func (a *Ptag) show() {
+	p := a.picts[a.index]
+	defer a.win.SetTitle(p.Title())
+	if err := p.Draw(a.iDraw); err != nil {
 		fmt.Fprintf(os.Stderr, "%s: draw: %v", p.Name(), err)
 		return
 	}
-	r.iCanvas.Refresh()
+	a.iCanvas.Refresh()
 	if *verbose {
-		fmt.Printf("%s (%d): Showing image, size %g, %g\n", p.Name(), r.index, r.iCanvas.Size().Width, r.iCanvas.Size().Height)
+		fmt.Printf("%s (%d): Showing image, size %g, %g\n", p.Name(), a.index, a.iCanvas.Size().Width, a.iCanvas.Size().Height)
 	}
 	// If Draw worked, no error will be returned from Caption()
 	capt, _ := p.Caption()
@@ -78,133 +78,133 @@ func (r *runner) show() {
 		if *verbose {
 			fmt.Printf("Initialising caption text to <%s>\n", capt)
 		}
-		r.caption.SetText(capt)
+		a.caption.SetText(capt)
 	} else {
-		r.caption.SetText("")
-		r.caption.SetPlaceHolder("Caption")
+		a.caption.SetText("")
+		a.caption.SetPlaceHolder("Caption")
 	}
-	r.displayRating()
+	a.displayRating()
 }
 
 // build creates the objects that are comprise the main window.
-func (r *runner) build() {
-	r.rating = canvas.NewText("Rating: -", color.Black)
-	r.caption = &CaptionEntry{runner: r}
-	r.caption.ExtendBaseWidget(r.caption)
-	r.caption.SetPlaceHolder("Caption")
+func (a *Ptag) build() {
+	a.rating = canvas.NewText("Rating: -", color.Black)
+	a.caption = &CaptionEntry{app: a}
+	a.caption.ExtendBaseWidget(a.caption)
+	a.caption.SetPlaceHolder("Caption")
 	// Initially set up a dummy canvas in order for the
 	// window to be shown and the sizes determined.
 	// The resize watcher will detect when the window is
 	// shown so that the first image can be loaded.
-	r.iCanvas = canvas.NewRectangle(color.Black)
-	r.top = container.NewBorder(nil, nil, r.rating, nil, r.caption)
-	r.win.SetContent(container.NewBorder(r.top, nil, nil, nil, r.iCanvas))
+	a.iCanvas = canvas.NewRectangle(color.Black)
+	a.top = container.NewBorder(nil, nil, a.rating, nil, a.caption)
+	a.win.SetContent(container.NewBorder(a.top, nil, nil, nil, a.iCanvas))
 	// Add key handlers
-	if deskCanvas, ok := r.win.Canvas().(desktop.Canvas); ok {
+	if deskCanvas, ok := a.win.Canvas().(desktop.Canvas); ok {
 		deskCanvas.SetOnKeyDown(func(key *fyne.KeyEvent) {
 			if *verbose {
 				fmt.Printf("Key: %s\n", key.Name)
 			}
 			switch key.Name {
 			case fyne.KeyUp, fyne.KeyPageUp:
-				r.setIndex(r.index - 10)
+				a.setIndex(a.index - 10)
 			case fyne.KeyDown, fyne.KeyPageDown:
-				r.setIndex(r.index + 10)
+				a.setIndex(a.index + 10)
 			case "N", fyne.KeyRight, fyne.KeySpace:
-				r.setIndex(r.index + 1)
+				a.setIndex(a.index + 1)
 			case "P", fyne.KeyLeft, fyne.KeyBackspace:
-				r.setIndex(r.index - 1)
+				a.setIndex(a.index - 1)
 			case fyne.KeyHome:
-				r.setIndex(0)
+				a.setIndex(0)
 			case fyne.KeyEnd:
-				r.setIndex(len(r.picts) - 1)
+				a.setIndex(len(a.picts) - 1)
 			case "M":
-				r.mirror()
+				a.mirror()
 			case "R":
-				r.rotate()
+				a.rotate()
 			case "F":
-				r.fullScreen()
+				a.fullScreen()
 			case "Q":
-				r.quit()
+				a.quit()
 			case fyne.KeyMinus:
-				r.rate(-1)
+				a.rate(-1)
 			case fyne.Key0:
-				r.rate(0)
+				a.rate(0)
 			case fyne.Key1:
-				r.rate(1)
+				a.rate(1)
 			case fyne.Key2:
-				r.rate(2)
+				a.rate(2)
 			case fyne.Key3:
-				r.rate(3)
+				a.rate(3)
 			case fyne.Key4:
-				r.rate(4)
+				a.rate(4)
 			case fyne.Key5:
-				r.rate(5)
+				a.rate(5)
 			}
 		})
 	}
 }
 
 // Updated flags that the EXIF data may have changed.
-func (r *runner) Updated() {
-	r.updated = true
+func (a *Ptag) Updated() {
+	a.updated = true
 }
 
 // Sync writes the caption if it has changed.
-func (r *runner) Sync() {
-	if r.updated {
-		r.updated = false
-		p := r.picts[r.index]
+func (a *Ptag) Sync() {
+	if a.updated {
+		a.updated = false
+		p := a.picts[a.index]
 		c, err := p.Caption()
 		if err == nil {
-			if c != r.caption.Text {
+			if c != a.caption.Text {
 				if *verbose {
-					fmt.Printf("%s (%d): update caption to <%s>\n", p.Name(), r.index, r.caption.Text)
+					fmt.Printf("%s (%d): update caption to <%s>\n", p.Name(), a.index, a.caption.Text)
 				}
-				p.SetCaption(r.caption.Text)
+				p.SetCaption(a.caption.Text)
 			}
 		}
 	}
 }
 
 // Window has been resized, so rescale all the images and redisplay the current one.
-func (r *runner) resize() {
-	sz := r.iCanvas.Size()
-	scale := r.win.Canvas().Scale()
+func (a *Ptag) resize() {
+	sz := a.iCanvas.Size()
+	scale := a.win.Canvas().Scale()
 	if *verbose {
 		fmt.Printf("resize to %g, %g, scale %g\n", sz.Width, sz.Height, scale)
 	}
 	// Create a new raster canvas for displaying the image
-	r.iDraw = image.NewRGBA(image.Rect(0, 0, int(sz.Width*scale), int(sz.Height*scale)))
-	r.iCanvas = canvas.NewRasterFromImage(r.iDraw)
-	r.win.SetContent(container.NewBorder(r.top, nil, nil, nil, r.iCanvas))
+	a.iDraw = image.NewRGBA(image.Rect(0, 0, int(sz.Width*scale), int(sz.Height*scale)))
+	a.iCanvas = canvas.NewRasterFromImage(a.iDraw)
+	a.win.SetContent(container.NewBorder(a.top, nil, nil, nil, a.iCanvas))
 	// The first image to be displayed shows the window.
-	if !r.active {
-		r.active = true
+	if !a.active {
+		a.active = true
 		// Preload other images
-		defer r.cacheUpdate()
+		defer a.cacheUpdate()
 	} else {
-		r.flushCache()
+		a.flushCache()
 	}
-	r.addCache(r.index)
-	r.show()
+	a.addCache(a.index)
+	a.show()
 }
 
 // fullScreen toggles full screen mode
-func (r *runner) fullScreen() {
-	r.win.SetFullScreen(!r.win.FullScreen())
+func (a *Ptag) fullScreen() {
+	a.win.SetFullScreen(!a.win.FullScreen())
 }
 
 // quit exits the app
-func (r *runner) quit() {
-	r.Sync()
+func (a *Ptag) quit() {
+	a.Sync()
 	vips.Shutdown()
-	r.app.Quit()
+	a.app.Quit()
 }
 
 // rotate the image
-func (r *runner) rotate() {
-	r.adjustOrientation(map[string]string{
+func (a *Ptag) rotate() {
+	a.adjustOrientation(map[string]string{
 		"":  "6", // No existing orientation
 		"1": "6",
 		"2": "5",
@@ -217,8 +217,8 @@ func (r *runner) rotate() {
 }
 
 // mirror the image
-func (r *runner) mirror() {
-	r.adjustOrientation(map[string]string{
+func (a *Ptag) mirror() {
+	a.adjustOrientation(map[string]string{
 		"":  "2", // No existing orientation
 		"1": "2",
 		"2": "1",
@@ -230,8 +230,8 @@ func (r *runner) mirror() {
 		"8": "7"})
 }
 
-func (r *runner) adjustOrientation(adj map[string]string) {
-	p := r.picts[r.index]
+func (a *Ptag) adjustOrientation(adj map[string]string) {
+	p := a.picts[a.index]
 	if current, err := p.Orientation(); err != nil {
 		fmt.Fprintf(os.Stderr, "%s: current orientation: %v", p.Name(), err)
 	} else {
@@ -240,7 +240,7 @@ func (r *runner) adjustOrientation(adj map[string]string) {
 			fmt.Fprintf(os.Stderr, "%s: unknown orientation: %s", p.Name(), current)
 		} else {
 			p.SetOrientation(newO)
-			r.redisplay()
+			a.redisplay()
 			if *verbose {
 				fmt.Printf("%s: old orientation %s, new orientation: %s\n", p.Name(), current, newO)
 			}
@@ -249,18 +249,18 @@ func (r *runner) adjustOrientation(adj map[string]string) {
 }
 
 // rate sets the rating on the current picture
-func (r *runner) rate(rating int) {
-	p := r.picts[r.index]
+func (a *Ptag) rate(rating int) {
+	p := a.picts[a.index]
 	if err := p.SetRating(rating); err != nil {
 		fmt.Fprintf(os.Stderr, "%s: Failed to set rating: %v", p.Name(), err)
 	} else {
-		r.displayRating()
+		a.displayRating()
 	}
 }
 
 // dispayRating updates the rating value on the window
-func (r *runner) displayRating() {
-	p := r.picts[r.index]
+func (a *Ptag) displayRating() {
+	p := a.picts[a.index]
 	rating, err := p.Rating()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: rating: %v", p.Name(), err)
@@ -270,46 +270,46 @@ func (r *runner) displayRating() {
 		fmt.Printf("Displaying rating as %d\n", rating)
 	}
 	if rating < 0 {
-		r.rating.Text = fmt.Sprintf("Rating: -")
+		a.rating.Text = fmt.Sprintf("Rating: -")
 	} else {
-		r.rating.Text = fmt.Sprintf("Rating: %d", rating)
+		a.rating.Text = fmt.Sprintf("Rating: %d", rating)
 	}
-	r.rating.Refresh()
+	a.rating.Refresh()
 }
 
-func (r *runner) redisplay() {
-	r.removeCache(r.index)
-	r.setIndex(r.index)
+func (a *Ptag) redisplay() {
+	a.removeCache(a.index)
+	a.setIndex(a.index)
 }
 
 // setIndex selects the image to display.
-func (r *runner) setIndex(newIndex int) {
-	r.Sync()
+func (a *Ptag) setIndex(newIndex int) {
+	a.Sync()
 	if newIndex < 0 {
 		newIndex = 0
 	}
-	if newIndex >= len(r.picts) {
-		newIndex = len(r.picts) - 1
+	if newIndex >= len(a.picts) {
+		newIndex = len(a.picts) - 1
 	}
-	r.index = newIndex
-	r.addCache(r.index)
-	r.show()
-	r.cacheUpdate()
+	a.index = newIndex
+	a.addCache(a.index)
+	a.show()
+	a.cacheUpdate()
 }
 
 // cacheUpdate updates the cached set of images
-func (r *runner) cacheUpdate() {
+func (a *Ptag) cacheUpdate() {
 	// Map of items to cache
 	nc := map[int]nothing{}
 	// List of new items
 	var newEntries []int
-	count := r.preload + 1
-	if count > len(r.picts) {
-		count = len(r.picts)
+	count := a.preload + 1
+	if count > len(a.picts) {
+		count = len(a.picts)
 	}
 	f := func(index int) {
-		if index >= 0 && index < len(r.picts) && count > 0 {
-			if _, ok := r.loaded[index]; !ok {
+		if index >= 0 && index < len(a.picts) && count > 0 {
+			if _, ok := a.loaded[index]; !ok {
 				// new entry
 				newEntries = append(newEntries, index)
 			}
@@ -319,7 +319,7 @@ func (r *runner) cacheUpdate() {
 		}
 	}
 	// Bias the preload going forwards
-	start := r.index + r.preload/4
+	start := a.index + a.preload/4
 	before := start
 	after := start + 1
 	for count > 0 {
@@ -329,52 +329,52 @@ func (r *runner) cacheUpdate() {
 		after++
 	}
 	// Unload any items not in the new cache
-	for k, _ := range r.loaded {
+	for k, _ := range a.loaded {
 		if _, ok := nc[k]; !ok {
-			r.removeCache(k)
+			a.removeCache(k)
 		}
 	}
 	// Begin loading new items - we do this after unloading the expired entries
 	for _, index := range newEntries {
-		r.addCache(index)
+		a.addCache(index)
 	}
 }
 
 // flushCache removes all the items from the cache.
-func (r *runner) flushCache() {
-	for k, _ := range r.loaded {
-		r.removeCache(k)
+func (a *Ptag) flushCache() {
+	for k, _ := range a.loaded {
+		a.removeCache(k)
 	}
 }
 
 // removeCache removes one image from the cache.
-func (r *runner) removeCache(index int) {
-	if _, ok := r.loaded[index]; ok {
-		delete(r.loaded, index)
-		r.picts[index].Unload()
+func (a *Ptag) removeCache(index int) {
+	if _, ok := a.loaded[index]; ok {
+		delete(a.loaded, index)
+		a.picts[index].Unload()
 	}
 }
 
 // addCache adds this image to the cache and initiates loading it.
-func (r *runner) addCache(index int) {
-	if _, ok := r.loaded[index]; !ok {
-		r.loaded[index] = nothing{}
-		r.picts[index].StartLoad(r.iDraw.Bounds().Max.X, r.iDraw.Bounds().Max.Y)
+func (a *Ptag) addCache(index int) {
+	if _, ok := a.loaded[index]; !ok {
+		a.loaded[index] = nothing{}
+		a.picts[index].StartLoad(a.iDraw.Bounds().Max.X, a.iDraw.Bounds().Max.Y)
 	}
 }
 
 // resizeWatcher tracks the actual size of the image canvas,
 // and will force the images to be resized and redisplayed once
 // the window has been resized.
-func (r *runner) resizeWatcher() {
+func (a *Ptag) resizeWatcher() {
 	sl := time.Millisecond * 50
 	changed := 0
-	lastC := r.iCanvas.Size()
+	lastC := a.iCanvas.Size()
 	current := lastC
 	for {
 		time.Sleep(sl)
-		if r.iCanvas.Size() != lastC {
-			lastC = r.iCanvas.Size()
+		if a.iCanvas.Size() != lastC {
+			lastC = a.iCanvas.Size()
 			// 250 ms delay before actioning resize
 			changed = 5
 		}
@@ -382,9 +382,9 @@ func (r *runner) resizeWatcher() {
 			changed--
 			if changed == 0 {
 				if *verbose {
-					fmt.Printf("Canvas resize to %g, %g from %g, %g\n", r.iCanvas.Size().Width, r.iCanvas.Size().Height, current.Width, current.Height)
+					fmt.Printf("Canvas resize to %g, %g from %g, %g\n", a.iCanvas.Size().Width, a.iCanvas.Size().Height, current.Width, current.Height)
 				}
-				r.resize()
+				a.resize()
 				current = lastC
 			}
 		}

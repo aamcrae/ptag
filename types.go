@@ -25,7 +25,7 @@ import (
 type nothing struct{}
 
 type CaptionEntry struct {
-	runner *runner
+	app *Ptag
 	widget.Entry
 }
 
@@ -63,7 +63,7 @@ type Pict struct {
 }
 
 // Main execution runner. Holds the state of the application.
-type runner struct {
+type Ptag struct {
 	app     fyne.App          // Main application
 	win     fyne.Window       // Main window
 	rating  *canvas.Text      // widget holding rating stars
