@@ -27,6 +27,7 @@ var width = flag.Int("width", 1500, "Window width")
 var height = flag.Int("height", 1200, "Window height")
 
 func main() {
+	flag.Usage = usage
 	flag.Parse()
 
 	var f []string
@@ -54,4 +55,23 @@ func main() {
 		return
 	}
 	r.start(f)
+}
+
+func usage() {
+	fmt.Fprintf(os.Stderr, "Usage of %s:\n", os.Args[0])
+	flag.PrintDefaults()
+	fmt.Fprintf(os.Stderr, `
+Shortcut keys are:
+  'N' <right-arrow> <space>        Next image
+  'P' <left-arrow> <back-space>    Previous image
+  <Home>                           First image
+  <End>                            Last image
+  <down-arrow>                     Jump forward 10 images
+  <up-arrow>                       Jump back 10 images
+  0, 1, 2, 3, 4, 5                 Set the EXIF rating to this value
+  'F'                              Toggle full-screen
+  'R'                              Rotate right 90 degrees
+  'M'                              Mirror flip the image
+  'Q'                              Quit
+`)
 }
