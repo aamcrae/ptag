@@ -32,7 +32,7 @@ func main() {
 	flag.Parse()
 
 	var f []string
-	// No args, do all image files
+	// No args, do all image files in the current directory
 	if len(flag.Args()) == 0 {
 		f = expand([]string{"*.jpg", "*.jpeg", "*.tif", "*.tiff"})
 	} else {

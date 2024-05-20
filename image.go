@@ -12,6 +12,8 @@
 
 package main
 
+// Functions to hold image data and context.
+
 import (
 	"fmt"
 	"image"
@@ -31,7 +33,7 @@ const (
 	I_ERROR
 )
 
-// Create a new Pict, representing an image from the file.
+// Create a new Pict, representing an image read from a file.
 func NewPict(file string, index int) *Pict {
 	_, f := path.Split(file)
 	return &Pict{state: I_UNLOADED, path: file, name: f, index: index}
@@ -47,7 +49,7 @@ func (p *Pict) wait() error {
 	return nil
 }
 
-// startLoad sets up to load and process the image.
+// StartLoad sets up to load and process the image.
 // The actual reading is delegated to a background goroutine.
 // After calling startLoad, the wait function must be called before
 // the image data is accessed.
@@ -73,8 +75,8 @@ func (p *Pict) StartLoad(w, h int) {
 func (p *Pict) load(w, h int) {
 	defer p.lock.Done()
 	p.clean()
-	// Read the EXIF data if it doesn't already exist
-	// This is read first so that the orientation can be used
+	// Read the EXIF data if it doesn't already exist.
+	// This is read first so that the EXIF orientation can be used
 	// to flip the image if necessary.
 	if p.exif == nil {
 		var err error
@@ -99,7 +101,7 @@ func (p *Pict) load(w, h int) {
 		p.err = err
 		return
 	}
-	// Apply EXIF orientation (if any)
+	// EXIF orientation map
 	adjustMap := map[string]struct {
 		rotate vips.Angle
 		flip   bool
@@ -116,11 +118,11 @@ func (p *Pict) load(w, h int) {
 	// Get EXIF orientation, if any
 	orient, ok := p.exif.Get(EXIV_ORIENTATION)
 	if !ok {
-		orient = "1" // No adjustment required
+		orient = "1" // No orientation EXIF, no adjustment required
 	}
 	adjust, ok := adjustMap[orient]
 	if ok {
-		// Rotate before flip
+		// Rotate before flip (if any)
 		if adjust.rotate != vips.Angle0 {
 			vimg.Rotate(adjust.rotate)
 			if *verbose {
@@ -140,7 +142,7 @@ func (p *Pict) load(w, h int) {
 	xRatio := float32(w) / float32(iW)
 	yRatio := float32(h) / float32(iH)
 	d := new(Data)
-	// If the image is larger than the window, scale it down
+	// If the image is larger than the canvas area, scale it down
 	var x, y int
 	if (*fit && (xRatio != 1 || yRatio != 1)) || (!*fit && (xRatio < 1 || yRatio < 1)) {
 		// Maintain the same aspect, so use the same scaling factor for
@@ -150,7 +152,6 @@ func (p *Pict) load(w, h int) {
 		if xRatio < yRatio {
 			err = vimg.Resize(float64(xRatio), vips.KernelAuto)
 			// Possible blank space at top and bottom,
-			// calculate space in pixels
 			y = (h - vimg.Height()) / 2
 
 		} else {
@@ -168,6 +169,7 @@ func (p *Pict) load(w, h int) {
 		x = (w - vimg.Width()) / 2
 		y = (h - vimg.Height()) / 2
 	}
+	// Convert to image.Image
 	d.img, err = vimg.ToImage(vips.NewDefaultExportParams())
 	if err != nil {
 		p.state = I_ERROR
@@ -206,7 +208,7 @@ func (p *Pict) load(w, h int) {
 }
 
 // draw writes the image to the backing image of the canvas,
-// and clears any surrounding area.
+// and clears any surrounding margins.
 func (p *Pict) Draw(dst draw.Image) error {
 	if err := p.wait(); err != nil {
 		return err
@@ -328,7 +330,7 @@ func (p *Pict) SetCaption(caption string) error {
 	return p.exif.Set(EXIV_CAPTION, caption)
 }
 
-// unload clears out the image data and sets the picture to unloaded.
+// unload clears out the cached image data and sets the picture to unloaded.
 func (p *Pict) Unload() {
 	if p.state != I_UNLOADED {
 		if *verbose {
@@ -339,7 +341,7 @@ func (p *Pict) Unload() {
 	}
 }
 
-// clean unloads the image to free the memory.
+// clean clears the image data to free the memory.
 func (p *Pict) clean() {
 	p.state = I_UNLOADED
 	p.data = nil

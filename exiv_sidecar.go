@@ -12,14 +12,17 @@
 
 package main
 
+// Implement a simple EXIF sidecar.
+// The format of the file is:
+// <exif-tag> <value>
+// This is the same format that the exiv2 utility outputs, allowing
+// this handler to use the same parser.
+
 import (
 	"fmt"
 	"os"
 )
 
-// Implement a simple EXIF sidecar.
-// The format of the file is:
-// <exif-tag> <value>
 type exivSidecar struct {
 	file string // sidecar file
 	exif map[int]string

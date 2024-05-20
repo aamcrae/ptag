@@ -12,6 +12,9 @@
 
 package main
 
+// Extend the Entry widget to capture mouse events
+// so that the caption window can be automatically focused.
+
 import (
 	"fyne.io/fyne/v2/driver/desktop"
 )

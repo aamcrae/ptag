@@ -12,6 +12,8 @@
 
 package main
 
+// Support EXIF data in embedded images
+
 import (
 	"fmt"
 	"os/exec"

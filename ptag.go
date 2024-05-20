@@ -28,9 +28,10 @@ import (
 	"github.com/davidbyttow/govips/v2/vips"
 )
 
+// newPtag creates a new Ptag app
 func newPtag(width, height, preload int) (*Ptag, error) {
 	a := app.New()
-	// Create a window to display the images.
+	// Create a top level window to hold the elements of the app.
 	win := a.NewWindow("ptag")
 	win.SetMaster()
 	if *fullscreen {
@@ -41,6 +42,7 @@ func newPtag(width, height, preload int) (*Ptag, error) {
 	return &Ptag{app: a, win: win, preload: preload, loaded: map[int]nothing{}}, nil
 }
 
+// start initialises the app and starts it.
 func (a *Ptag) start(f []string) {
 	// Make vips less noisy.
 	vips.LoggingSettings(nil, vips.LogLevelError)
@@ -86,7 +88,7 @@ func (a *Ptag) show() {
 	a.displayRating()
 }
 
-// build creates the objects that are comprise the main window.
+// build creates the elements that comprise the main window.
 func (a *Ptag) build() {
 	a.rating = canvas.NewText("Rating: -", color.Black)
 	a.caption = &CaptionEntry{app: a}
@@ -174,7 +176,9 @@ func (a *Ptag) resize() {
 	if *verbose {
 		fmt.Printf("resize to %g, %g, scale %g\n", sz.Width, sz.Height, scale)
 	}
-	// Create a new raster canvas for displaying the image
+	// Create a new raster canvas for displaying the image. A raster canvas
+	// maps the image pixels 1-1 to the canvas pixels.
+	// This canvas is then used as the target for the image drawing.
 	a.iDraw = image.NewRGBA(image.Rect(0, 0, int(sz.Width*scale), int(sz.Height*scale)))
 	a.iCanvas = canvas.NewRasterFromImage(a.iDraw)
 	a.win.SetContent(container.NewBorder(a.top, nil, nil, nil, a.iCanvas))
@@ -186,8 +190,7 @@ func (a *Ptag) resize() {
 	} else {
 		a.flushCache()
 	}
-	a.addCache(a.index)
-	a.show()
+	a.redisplay()
 }
 
 // fullScreen toggles full screen mode
@@ -202,7 +205,7 @@ func (a *Ptag) quit() {
 	a.app.Quit()
 }
 
-// rotate the image
+// rotate the image 90 degrees clockwise
 func (a *Ptag) rotate() {
 	a.adjustOrientation(map[string]string{
 		"":  "6", // No existing orientation
@@ -230,6 +233,8 @@ func (a *Ptag) mirror() {
 		"8": "7"})
 }
 
+// adjustOrientation selects a new orientation value using
+// the current orientation as the key.
 func (a *Ptag) adjustOrientation(adj map[string]string) {
 	p := a.picts[a.index]
 	if current, err := p.Orientation(); err != nil {
@@ -248,7 +253,7 @@ func (a *Ptag) adjustOrientation(adj map[string]string) {
 	}
 }
 
-// rate sets the rating on the current picture
+// rate sets the rating on the current picture.
 func (a *Ptag) rate(rating int) {
 	p := a.picts[a.index]
 	if err := p.SetRating(rating); err != nil {
@@ -258,7 +263,7 @@ func (a *Ptag) rate(rating int) {
 	}
 }
 
-// dispayRating updates the rating value on the window
+// displayRating updates the rating display
 func (a *Ptag) displayRating() {
 	p := a.picts[a.index]
 	rating, err := p.Rating()
@@ -277,6 +282,8 @@ func (a *Ptag) displayRating() {
 	a.rating.Refresh()
 }
 
+// redisplay the current image, usually because something has changed
+// such as orientation or size.
 func (a *Ptag) redisplay() {
 	a.removeCache(a.index)
 	a.setIndex(a.index)

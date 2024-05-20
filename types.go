@@ -58,11 +58,11 @@ type Pict struct {
 	index int            // Index within list of images
 	err   error          // Error during loading
 	lock  sync.WaitGroup // lock for loading
-	exif  Exif           // Exif data
+	exif  Exif           // Exif object
 	data  *Data          // Cached mage data, nil if unloaded
 }
 
-// Main execution runner. Holds the state of the application.
+// Main Ptag object. Holds the state of the application.
 type Ptag struct {
 	app     fyne.App          // Main application
 	win     fyne.Window       // Main window
