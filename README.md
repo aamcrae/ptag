@@ -2,6 +2,9 @@
 ptag is a high speed image viewer, with the ability to adjust EXIF ratings and captions.
 No direct image manipulation is done - only EXIF data is modifed.
 
+The EXIF data can be stored in different formats or files e.g embedded
+in the image file itself, or in sidecar files.
+
 ptag will preload images ready for viewing so that image display is fast.
 
 The [fyne](https://fyne.io/) toolkit is used for window management and display,
