@@ -18,6 +18,11 @@ import (
 	"strings"
 )
 
+// exiv is an intermediate handler for the EXIF data.
+// Separate EXIF handlers can be defined that allow EXIF data to be
+// stored in different files or formats.
+// Only some EXIF tags are used.
+
 // maps the exiv enum to the EXIF tag
 var exivToSet = map[int]string{
 	EXIV_RATING:      "Xmp.xmp.Rating",
@@ -37,16 +42,17 @@ var exivFromName = map[string]int{
 // GetExif will create and return the EXIF object for this file
 var GetExif func(string) (Exif, error)
 
+// Select which EXIF handler should be used.
 func initExif() {
 	if *sidecar {
-		GetExif = newExivSidecar
+		GetExif = newExivSidecar // Simple EXIF sidecar file
 	} else {
-		GetExif = newExivEmbedded
+		GetExif = newExivEmbedded // Embedded EXIF in image file.
 	}
 }
 
 // readExif parses lines of the form "<exif-tag> <value>"
-// and returns a map containing the exif data
+// and returns a map containing the exif data.
 func readExif(src, lines string) map[int]string {
 	ex := make(map[int]string)
 	for _, l := range strings.Split(lines, "\n") {
