@@ -25,6 +25,7 @@ type exivEmbedded struct {
 }
 
 func newExivEmbedded(file string) (Exif, error) {
+	e := &exivEmbedded{file: file, exif: map[int]string{}}
 	cmd := exec.Command("exiv2", "-q", "-P", "EkIXv", "-K", "Xmp.xmp.Rating",
 		"-K", "Iptc.Application2.Caption",
 		"-K", "Exif.Image.Orientation",
@@ -36,9 +37,9 @@ func newExivEmbedded(file string) (Exif, error) {
 		fmt.Printf("Running: %s\noutput: %s\n", strings.Join(cmd.Args, " "), outp)
 	}
 	if err != nil {
-		return nil, err
+		// No exif in file.
+		return e, nil
 	}
-	e := &exivEmbedded{file: file, exif: map[int]string{}}
 	e.exif = readExif(e.file, string(outp))
 	return e, nil
 }
@@ -76,7 +77,7 @@ func (e *exivEmbedded) Delete(tag int) error {
 	if !ok {
 		return fmt.Errorf("Unknown EXIF tag: %d", tag)
 	}
-	cmd := exec.Command("exiv2", "-q", fmt.Sprintf("-Mdelete %s", etag), e.file)
+	cmd := exec.Command("exiv2", "-q", fmt.Sprintf("-Mdel %s", etag), e.file)
 	if *verbose {
 		fmt.Printf("Running: %s\n", strings.Join(cmd.Args, " "))
 	}

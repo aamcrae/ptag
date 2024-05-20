@@ -70,7 +70,7 @@ Shortcut keys are:
   <End>                            Last image
   <down-arrow>                     Jump forward 10 images
   <up-arrow>                       Jump back 10 images
-  0, 1, 2, 3, 4, 5                 Set the EXIF rating to this value
+  -, 0, 1, 2, 3, 4, 5              Set the EXIF rating to this value [- delete]
   'F'                              Toggle full-screen
   'R'                              Rotate right 90 degrees
   'M'                              Mirror flip the image

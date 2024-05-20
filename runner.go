@@ -82,20 +82,7 @@ func (r *runner) show() {
 		r.caption.SetText("")
 		r.caption.SetPlaceHolder("Caption")
 	}
-	rating, err := p.Rating()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s: rating: %v", p.Name(), err)
-	}
-	// Display rating.
-	if *verbose && rating >= 0 {
-		fmt.Printf("Initialising rating to %d\n", rating)
-	}
-	if rating < 0 {
-		r.rating.Text = fmt.Sprintf("Rating: -")
-	} else {
-		r.rating.Text = fmt.Sprintf("Rating: %d", rating)
-	}
-	r.rating.Refresh()
+	r.displayRating()
 }
 
 func (r *runner) build() {
@@ -137,6 +124,8 @@ func (r *runner) build() {
 				r.fullScreen()
 			case "Q":
 				r.quit()
+			case fyne.KeyMinus:
+				r.rate(-1)
 			case fyne.Key0:
 				r.rate(0)
 			case fyne.Key1:
@@ -262,9 +251,27 @@ func (r *runner) rate(rating int) {
 	if err := p.SetRating(rating); err != nil {
 		fmt.Fprintf(os.Stderr, "%s: Failed to set rating: %v", p.Name(), err)
 	} else {
-		r.rating.Text = fmt.Sprintf("Rating: %d", rating)
-		r.rating.Refresh()
+		r.displayRating()
 	}
+}
+
+// dispayRating updates the rating value on the window
+func (r *runner) displayRating() {
+	p := r.picts[r.index]
+	rating, err := p.Rating()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s: rating: %v", p.Name(), err)
+	}
+	// Display rating.
+	if *verbose {
+		fmt.Printf("Displaying rating as %d\n", rating)
+	}
+	if rating < 0 {
+		r.rating.Text = fmt.Sprintf("Rating: -")
+	} else {
+		r.rating.Text = fmt.Sprintf("Rating: %d", rating)
+	}
+	r.rating.Refresh()
 }
 
 func (r *runner) redisplay() {
