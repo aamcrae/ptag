@@ -17,6 +17,9 @@ import (
 	"os"
 )
 
+// Implement a simple EXIF sidecar.
+// The format of the file is:
+// <exif-tag> <value>
 type exivSidecar struct {
 	file string // sidecar file
 	exif map[int]string
