@@ -1,5 +1,5 @@
 # ptag
-ptag is a high speed image viewer, with the ability to adjust EXIF ratings and captions.
+ptag is a high speed image viewer, with the ability to adjust EXIF ratings, captions and orientation.
 No direct image manipulation is done - only EXIF data is modifed.
 
 The EXIF data can be stored in different formats or files e.g embedded
