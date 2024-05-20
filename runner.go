@@ -47,19 +47,20 @@ func (r *runner) start(f []string) {
 	vips.Startup(nil)
 	// Create some containers for the layout.
 	r.build()
-	// Create a pict structure for every image
+	// Create a Pict object for every image
 	for i, file := range f {
 		p := NewPict(file, i)
 		p.SetTitle(fmt.Sprintf("%s (%d/%d)", p.Name(), i+1, len(f)))
 		r.picts = append(r.picts, p)
 	}
+	// Show the main window.
 	r.win.Show()
 	go r.resizeWatcher()
 	// Main runloop.
 	r.app.Run()
 }
 
-// Show the current image from the cache.
+// Show the current image.
 func (r *runner) show() {
 	p := r.picts[r.index]
 	defer r.win.SetTitle(p.Title())
@@ -69,7 +70,7 @@ func (r *runner) show() {
 	}
 	r.iCanvas.Refresh()
 	if *verbose {
-		fmt.Printf("%s (%d): Showing size %g, %g\n", p.Name(), r.index, r.iCanvas.Size().Width, r.iCanvas.Size().Height)
+		fmt.Printf("%s (%d): Showing image, size %g, %g\n", p.Name(), r.index, r.iCanvas.Size().Width, r.iCanvas.Size().Height)
 	}
 	// If Draw worked, no error will be returned from Caption()
 	capt, _ := p.Caption()
@@ -85,6 +86,7 @@ func (r *runner) show() {
 	r.displayRating()
 }
 
+// build creates the objects that are comprise the main window.
 func (r *runner) build() {
 	r.rating = canvas.NewText("Rating: -", color.Black)
 	r.caption = &CaptionEntry{runner: r}
@@ -148,6 +150,7 @@ func (r *runner) Updated() {
 	r.updated = true
 }
 
+// Sync writes the caption if it has changed.
 func (r *runner) Sync() {
 	if r.updated {
 		r.updated = false

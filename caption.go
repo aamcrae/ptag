@@ -18,12 +18,12 @@ import (
 
 func (c *CaptionEntry) MouseIn(*desktop.MouseEvent) {
 	c.runner.win.Canvas().Focus(c)
-	c.runner.Updated()
+	c.runner.Updated() // Flag that the caption may have changed
 }
 
 func (c *CaptionEntry) MouseOut() {
 	c.runner.win.Canvas().Unfocus()
-	c.runner.Sync()
+	c.runner.Sync() // Write the caption to the EXIF data
 }
 
 func (c *CaptionEntry) MouseMoved(*desktop.MouseEvent) {
