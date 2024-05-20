@@ -76,19 +76,18 @@ func (p *Pict) load(w, h int) {
 	// Read the EXIF data if it doesn't already exist
 	// This is read first so that the orientation can be used
 	// to flip the image if necessary.
-	if p.exiv == nil {
+	if p.exif == nil {
 		var err error
-		p.exiv, err = getExiv(p.path)
+		p.exif, err = GetExif(p.path)
 		if err != nil {
 			// We do allow an error when reading the EXIF.
 			// This usually means there is no EXIF headers in the file
-			p.exiv = make(Exiv)
 			if *verbose {
-				fmt.Printf("%s (%d): No exiv data!\n", p.name, p.index, p.exiv)
+				fmt.Printf("%s (%d): No exif data!\n", p.name, p.index)
 			}
 		} else {
 			if *verbose {
-				fmt.Printf("%s (%d): exiv loaded: %v\n", p.name, p.index, p.exiv)
+				fmt.Printf("%s (%d): exif loaded\n", p.name, p.index)
 			}
 		}
 	}
@@ -115,7 +114,7 @@ func (p *Pict) load(w, h int) {
 		"8": {vips.Angle270, false},
 	}
 	// Get EXIF orientation, if any
-	orient, ok := p.exiv[EXIV_ORIENTATION]
+	orient, ok := p.exif.Get(EXIV_ORIENTATION)
 	if !ok {
 		orient = "1" // No adjustment required
 	}
@@ -242,7 +241,7 @@ func (p *Pict) Rating() (int, error) {
 	if err := p.wait(); err != nil {
 		return 0, err
 	}
-	if r, ok := p.exiv[EXIV_RATING]; ok {
+	if r, ok := p.exif.Get(EXIV_RATING); ok {
 		var rating int
 		n, err := fmt.Sscanf(r, "%d", &rating)
 		if err != nil {
@@ -267,22 +266,12 @@ func (p *Pict) SetRating(rating int) error {
 		fmt.Printf("Set rating of %s to %d\n", p.name, rating)
 	}
 	if rating < 0 {
-		if err := deleteExiv(p.path, Exiv{EXIV_RATING: ""}); err != nil {
-			return err
-		}
-		delete(p.exiv, EXIV_RATING)
-		return nil
+		return p.exif.Delete(EXIV_RATING)
 	}
 	if rating > 5 {
 		return fmt.Errorf("%d: illegal rating", rating)
 	}
-	sr := fmt.Sprintf("%d", rating)
-	err := setExiv(p.path, Exiv{EXIV_RATING: sr})
-	if err == nil {
-		// Update the current values
-		p.exiv[EXIV_RATING] = sr
-	}
-	return nil
+	return p.exif.Set(EXIV_RATING, fmt.Sprintf("%d", rating))
 }
 
 // Orientation returns the current orientation, "" if none
@@ -290,7 +279,7 @@ func (p *Pict) Orientation() (string, error) {
 	if err := p.wait(); err != nil {
 		return "", err
 	}
-	if r, ok := p.exiv[EXIV_ORIENTATION]; ok {
+	if r, ok := p.exif.Get(EXIV_ORIENTATION); ok {
 		return r, nil
 	} else {
 		return "", nil
@@ -307,18 +296,9 @@ func (p *Pict) SetOrientation(orientation string) error {
 		fmt.Printf("Set orientation of %s to %s\n", p.name, orientation)
 	}
 	if orientation == "" {
-		if err := deleteExiv(p.path, Exiv{EXIV_ORIENTATION: ""}); err != nil {
-			return err
-		}
-		delete(p.exiv, EXIV_ORIENTATION)
-		return nil
+		return p.exif.Delete(EXIV_ORIENTATION)
 	}
-	err := setExiv(p.path, Exiv{EXIV_ORIENTATION: orientation})
-	if err == nil {
-		// Update the current values
-		p.exiv[EXIV_ORIENTATION] = orientation
-	}
-	return nil
+	return p.exif.Set(EXIV_ORIENTATION, orientation)
 }
 
 // Caption returns the current caption (if any)
@@ -326,7 +306,7 @@ func (p *Pict) Caption() (string, error) {
 	if err := p.wait(); err != nil {
 		return "", err
 	}
-	if r, ok := p.exiv[EXIV_CAPTION]; ok {
+	if r, ok := p.exif.Get(EXIV_CAPTION); ok {
 		return r, nil
 	} else {
 		return "", nil
@@ -343,18 +323,9 @@ func (p *Pict) SetCaption(caption string) error {
 		fmt.Printf("Set caption of %s to %s\n", p.name, caption)
 	}
 	if len(caption) == 0 {
-		if err := deleteExiv(p.path, Exiv{EXIV_CAPTION: ""}); err != nil {
-			return err
-		}
-		delete(p.exiv, EXIV_CAPTION)
-		return nil
+		return p.exif.Delete(EXIV_CAPTION)
 	}
-	err := setExiv(p.path, Exiv{EXIV_CAPTION: caption})
-	if err == nil {
-		// Update the current values
-		p.exiv[EXIV_CAPTION] = caption
-	}
-	return nil
+	return p.exif.Set(EXIV_CAPTION, caption)
 }
 
 // unload clears out the image data and sets the picture to unloaded.

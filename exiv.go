@@ -15,15 +15,7 @@ package main
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"strings"
-)
-
-// The list of EXIF fields that we care about
-const (
-	EXIV_RATING = iota
-	EXIV_CAPTION
-	EXIV_ORIENTATION
 )
 
 // maps the exiv enum to the EXIF tag
@@ -42,24 +34,22 @@ var exivFromName = map[string]int{
 	"Exif.Image.Orientation":       EXIV_ORIENTATION,
 }
 
-// getExiv will retrieve the required EXIF fields from the file
-func getExiv(f string) (Exiv, error) {
-	cmd := exec.Command("exiv2", "-q", "-P", "EkIXv", "-K", "Xmp.xmp.Rating",
-		"-K", "Iptc.Application2.Caption",
-		"-K", "Exif.Image.Orientation",
-		"-K", "Iptc.Application2.Headline",
-		"-K", "Iptc.Application2.ObjectName",
-		f)
-	outp, err := cmd.Output()
-	if *verbose {
-		fmt.Printf("Running: %s\noutput: %s\n", strings.Join(cmd.Args, " "), outp)
+// GetExif will create and return the EXIF object for this file
+var GetExif func(string) (Exif, error)
+
+func initExif() {
+	if *sidecar {
+		GetExif = newExivSidecar
+	} else {
+		GetExif = newExivEmbedded
 	}
-	if err != nil {
-		// Very likely there is no exif headers in this file.
-		return nil, err
-	}
-	ev := make(Exiv)
-	for _, l := range strings.Split(string(outp), "\n") {
+}
+
+// readExif parses lines of the form "<exif-tag> <value>"
+// and returns a map containing the exif data
+func readExif(src, lines string) map[int]string {
+	ex := make(map[int]string)
+	for _, l := range strings.Split(lines, "\n") {
 		if len(l) == 0 {
 			continue
 		}
@@ -74,59 +64,27 @@ func getExiv(f string) (Exiv, error) {
 			switch exiv {
 			case EXIV_CAPTION:
 				// Create a single string from the separate caption words
-				ev[EXIV_CAPTION] = value
+				ex[EXIV_CAPTION] = value
 			case EXIV_RATING:
 				// Validate rating (should "0" - "5")
 				switch value {
 				default:
-					fmt.Fprintf(os.Stderr, "%s: illegal value for rating (%s)", f, value)
+					fmt.Fprintf(os.Stderr, "%s: illegal value for rating (%s)", src, value)
 				case "0", "1", "2", "3", "4", "5":
-					ev[exiv] = value
+					ex[exiv] = value
 				}
 			case EXIV_ORIENTATION:
 				// Validate orientation (should "1" - "8")
 				switch value {
 				default:
-					fmt.Fprintf(os.Stderr, "%s: illegal value for orientation (%s)", f, value)
+					fmt.Fprintf(os.Stderr, "%s: illegal value for orientation (%s)", src, value)
 				case "1", "2", "3", "4", "5", "6", "7", "8":
-					ev[exiv] = value
+					ex[exiv] = value
 				}
 			}
 		} else {
-			fmt.Fprintf(os.Stderr, "%s: Unknown exiv tag: %s\n", f, fields[0])
+			fmt.Fprintf(os.Stderr, "%s: Unknown exiv tag: %s\n", src, fields[0])
 		}
 	}
-	return ev, nil
-}
-
-// setExiv will set the selected EXIF fields in the file
-func setExiv(f string, ex Exiv) error {
-	if len(ex) == 0 {
-		return fmt.Errorf("no EXIV tags to set")
-	}
-	cmd := exec.Command("exiv2", "-q")
-	for k, v := range ex {
-		cmd.Args = append(cmd.Args, fmt.Sprintf("-Mset %s %s", exivToSet[k], v))
-	}
-	cmd.Args = append(cmd.Args, f)
-	if *verbose {
-		fmt.Printf("Running: %s\n", strings.Join(cmd.Args, " "))
-	}
-	return cmd.Run()
-}
-
-// deleteExiv will delete the selected fields from the file
-func deleteExiv(f string, ex Exiv) error {
-	if len(ex) == 0 {
-		return fmt.Errorf("no EXIV tags to delete")
-	}
-	cmd := exec.Command("exiv2", "-q")
-	for k, _ := range ex {
-		cmd.Args = append(cmd.Args, fmt.Sprintf("-Mdelete %s", exivToSet[k]))
-	}
-	cmd.Args = append(cmd.Args, f)
-	if *verbose {
-		fmt.Printf("Running: %s\n", strings.Join(cmd.Args, " "))
-	}
-	return cmd.Run()
+	return ex
 }

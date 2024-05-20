@@ -29,9 +29,18 @@ type CaptionEntry struct {
 	widget.Entry
 }
 
-// Exiv holds a map of selected EXIF elements that
-// we are interested in (rating and caption)
-type Exiv map[int]string
+// The list of EXIF fields that we care about
+const (
+	EXIV_RATING = iota
+	EXIV_CAPTION
+	EXIV_ORIENTATION
+)
+
+type Exif interface {
+	Get(int) (string, bool)
+	Set(int, string) error
+	Delete(int) error
+}
 
 // Cached image data.
 type Data struct {
@@ -49,7 +58,7 @@ type Pict struct {
 	index int            // Index within list of images
 	err   error          // Error during loading
 	lock  sync.WaitGroup // lock for loading
-	exiv  Exiv           // Current EXIF data
+	exif  Exif           // Exif data
 	data  *Data          // Cached mage data, nil if unloaded
 }
 

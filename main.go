@@ -26,7 +26,6 @@ var maxPreload = flag.Int("preload", 10, "Maximum images to concurrently load")
 var width = flag.Int("width", 1500, "Window width")
 var height = flag.Int("height", 1200, "Window height")
 var sidecar = flag.Bool("sidecar", false, "Use sidecar file for EXIF")
-var sidecarExt = flag.String("sidecar_type", "exif", "Sidecar file type (supported types: exif")
 
 func main() {
 	flag.Usage = usage
@@ -51,6 +50,7 @@ func main() {
 	if *verbose {
 		fmt.Printf("%d files in total, preload = %d\n", len(f), preload)
 	}
+	initExif()
 	r, err := newRunner(*width, *height, preload)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "init: %v", err)

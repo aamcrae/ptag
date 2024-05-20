@@ -91,7 +91,7 @@ func (r *runner) show() {
 		fmt.Printf("Initialising rating to %d\n", rating)
 	}
 	if rating < 0 {
-		r.rating.Text = fmt.Sprintf("Rating: not set")
+		r.rating.Text = fmt.Sprintf("Rating: -")
 	} else {
 		r.rating.Text = fmt.Sprintf("Rating: %d", rating)
 	}
@@ -99,8 +99,7 @@ func (r *runner) show() {
 }
 
 func (r *runner) build() {
-	r.rating = canvas.NewText("Rating:", color.Black)
-	r.rating.SetMinSize(fyne.NewSize(150, 0))
+	r.rating = canvas.NewText("Rating: -", color.Black)
 	r.caption = &CaptionEntry{runner: r}
 	r.caption.ExtendBaseWidget(r.caption)
 	r.caption.SetPlaceHolder("Caption")
