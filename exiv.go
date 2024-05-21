@@ -40,7 +40,7 @@ var exivFromName = map[string]int{
 }
 
 // GetExif will create and return the EXIF object for this file
-var GetExif func(string) (Exif, error)
+var GetExif func(string, []byte) (Exif, error)
 
 // Select which EXIF handler should be used.
 func initExif() {

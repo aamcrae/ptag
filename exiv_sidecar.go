@@ -29,7 +29,7 @@ type exivSidecar struct {
 	Exif
 }
 
-func newExivSidecar(file string) (Exif, error) {
+func newExivSidecar(file string, buf []byte) (Exif, error) {
 	// Add ".exif" to filename
 	f := file + ".exif"
 	e := &exivSidecar{file: f, exif: map[int]string{}}

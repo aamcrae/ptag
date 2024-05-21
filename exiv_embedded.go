@@ -26,7 +26,7 @@ type exivEmbedded struct {
 	Exif
 }
 
-func newExivEmbedded(file string) (Exif, error) {
+func newExivEmbedded(file string, buf []byte) (Exif, error) {
 	e := &exivEmbedded{file: file, exif: map[int]string{}}
 	cmd := exec.Command("exiv2", "-q", "-P", "EkIXv", "-K", "Xmp.xmp.Rating",
 		"-K", "Iptc.Application2.Caption",

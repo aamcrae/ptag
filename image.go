@@ -19,6 +19,7 @@ import (
 	"image"
 	"image/color"
 	"image/draw"
+	"os"
 	"path"
 
 	"github.com/davidbyttow/govips/v2/vips"
@@ -75,12 +76,18 @@ func (p *Pict) StartLoad(w, h int) {
 func (p *Pict) load(w, h int) {
 	defer p.lock.Done()
 	p.clean()
+	fData, err := os.ReadFile(p.path)
+	if err != nil {
+		p.state = I_ERROR
+		p.err = err
+		return
+	}
 	// Read the EXIF data if it doesn't already exist.
 	// This is read first so that the EXIF orientation can be used
 	// to flip the image if necessary.
 	if p.exif == nil {
 		var err error
-		p.exif, err = GetExif(p.path)
+		p.exif, err = GetExif(p.path, fData)
 		if err != nil {
 			// We do allow an error when reading the EXIF.
 			// This usually means there is no EXIF headers in the file
@@ -95,7 +102,7 @@ func (p *Pict) load(w, h int) {
 	}
 
 	// Read the image from the file.
-	vimg, err := vips.NewImageFromFile(p.path)
+	vimg, err := vips.NewImageFromBuffer(fData)
 	if err != nil {
 		p.state = I_ERROR
 		p.err = err
