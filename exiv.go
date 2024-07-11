@@ -26,16 +26,16 @@ import (
 // maps the internal EXIF enum to the EXIF tag string
 var exivToSet = map[int]string{
 	EXIV_RATING:      "Xmp.xmp.Rating",
-	EXIV_CAPTION:     "Iptc.Application2.Caption",
+	EXIV_HEADLINE:    "Iptc.Application2.Headline",
 	EXIV_ORIENTATION: "Exif.Image.Orientation",
 }
 
 // maps the EXIF tag string to the internal enum
 var exivFromName = map[string]int{
 	"Xmp.xmp.Rating":               EXIV_RATING,
-	"Iptc.Application2.Caption":    EXIV_CAPTION,
-	"Iptc.Application2.Headline":   EXIV_CAPTION,
-	"Iptc.Application2.ObjectName": EXIV_CAPTION,
+	"Iptc.Application2.Caption":    EXIV_HEADLINE,
+	"Iptc.Application2.Headline":   EXIV_HEADLINE,
+	"Iptc.Application2.ObjectName": EXIV_HEADLINE,
 	"Exif.Image.Orientation":       EXIV_ORIENTATION,
 }
 
@@ -69,9 +69,9 @@ func readExif(src, lines string) map[int]string {
 			// Concatenate values
 			value := strings.Join(fields[1:], " ")
 			switch exiv {
-			case EXIV_CAPTION:
+			case EXIV_HEADLINE:
 				// Create a single string from the separate caption words
-				ex[EXIV_CAPTION] = value
+				ex[EXIV_HEADLINE] = value
 			case EXIV_RATING:
 				// Validate rating (should "0" - "5")
 				switch value {

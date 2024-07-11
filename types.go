@@ -32,7 +32,7 @@ type CaptionEntry struct {
 // The list of EXIF fields that we care about
 const (
 	EXIV_RATING = iota
-	EXIV_CAPTION
+	EXIV_HEADLINE
 	EXIV_ORIENTATION
 )
 

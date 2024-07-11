@@ -315,7 +315,7 @@ func (p *Pict) Caption() (string, error) {
 	if err := p.wait(); err != nil {
 		return "", err
 	}
-	if r, ok := p.exif.Get(EXIV_CAPTION); ok {
+	if r, ok := p.exif.Get(EXIV_HEADLINE); ok {
 		return r, nil
 	} else {
 		return "", nil
@@ -332,9 +332,9 @@ func (p *Pict) SetCaption(caption string) error {
 		fmt.Printf("Set caption of %s to %s\n", p.name, caption)
 	}
 	if len(caption) == 0 {
-		return p.exif.Delete(EXIV_CAPTION)
+		return p.exif.Delete(EXIV_HEADLINE)
 	}
-	return p.exif.Set(EXIV_CAPTION, caption)
+	return p.exif.Set(EXIV_HEADLINE, caption)
 }
 
 // unload clears out the cached image data and sets the picture to unloaded.
