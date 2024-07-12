@@ -16,18 +16,39 @@ package main
 // so that the caption window can be automatically focused.
 
 import (
+	"fmt"
 	"fyne.io/fyne/v2/driver/desktop"
 )
 
 func (c *CaptionEntry) MouseIn(*desktop.MouseEvent) {
 	c.app.win.Canvas().Focus(c)
+	c.mouseIn = true
+	if *verbose {
+		fmt.Printf("MouseIn\n")
+	}
 	c.app.Updated() // Flag that the caption may have changed
 }
 
 func (c *CaptionEntry) MouseOut() {
+	if *verbose {
+		fmt.Printf("MouseOut\n")
+	}
+	c.mouseIn = false
 	c.app.win.Canvas().Unfocus()
 	c.app.Sync() // Write the caption to the EXIF data
 }
 
 func (c *CaptionEntry) MouseMoved(*desktop.MouseEvent) {
+}
+
+func (c *CaptionEntry) OnChange(v string) {
+	if *verbose {
+		fmt.Printf("OnChange: <%s>\n", v)
+	}
+	c.app.Updated()
+	if !c.mouseIn {
+		// Change may have been due to a paste.
+		c.app.win.Canvas().Unfocus()
+		c.app.Sync()
+	}
 }

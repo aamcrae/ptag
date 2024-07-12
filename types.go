@@ -25,7 +25,8 @@ import (
 type nothing struct{}
 
 type CaptionEntry struct {
-	app *Ptag
+	app     *Ptag
+	mouseIn bool
 	widget.Entry
 }
 

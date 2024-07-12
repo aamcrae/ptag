@@ -94,6 +94,7 @@ func (a *Ptag) build() {
 	a.caption = &CaptionEntry{app: a}
 	a.caption.ExtendBaseWidget(a.caption)
 	a.caption.SetPlaceHolder("Caption")
+	a.caption.OnChanged = a.caption.OnChange
 	// Initially set up a dummy canvas in order for the
 	// window to be shown and the sizes determined.
 	// The resize watcher will detect when the window is
@@ -150,6 +151,10 @@ func (a *Ptag) build() {
 // Updated flags that the EXIF data may have changed.
 func (a *Ptag) Updated() {
 	a.updated = true
+	if *verbose {
+		p := a.picts[a.index]
+		fmt.Printf("%s (%d): Updated flag set\n", p.Name(), a.index)
+	}
 }
 
 // Sync writes the caption if it has changed.
