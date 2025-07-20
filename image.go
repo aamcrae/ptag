@@ -235,6 +235,11 @@ func (p *Pict) Title() string {
 	return p.title
 }
 
+// Path returns the complete filename
+func (p *Pict) Path() string {
+	return p.path
+}
+
 // Name returns the current base filename
 func (p *Pict) Name() string {
 	return p.name

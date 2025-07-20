@@ -52,7 +52,7 @@ func (a *Ptag) start(f []string) {
 	// Create a Pict object for every image
 	for i, file := range f {
 		p := NewPict(file, i)
-		p.SetTitle(fmt.Sprintf("%s (%d/%d)", p.Name(), i+1, len(f)))
+		p.SetTitle(fmt.Sprintf("%s (%d/%d)", p.Path(), i+1, len(f)))
 		a.picts = append(a.picts, p)
 	}
 	// Show the main window.
